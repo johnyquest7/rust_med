@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Note Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Medical Note Generator</h1>
+            <div id="status" class="status">Ready</div>
+        </header>
+
+        <main>
+            <section class="recording-controls">
+                <div class="note-type-selector">
+                    <label for="noteType">Note Type:</label>
+                    <select id="noteType" class="note-type-select">
+                        <option value="soap">SOAP Note</option>
+                        <option value="full">Full Note</option>
+                    </select>
+                </div>
+                <button id="startBtn" class="btn btn-primary">Start Recording</button>
+                <button id="stopBtn" class="btn btn-secondary" disabled>Stop Recording</button>
+                <div class="recording-indicator">
+                    <div id="recordingDot" class="recording-dot"></div>
+                    <span id="recordingText">Not Recording</span>
+                </div>
+            </section>
+
+            <section class="transcript-section">
+                <h2>Transcript</h2>
+                <div id="transcript" class="text-display" placeholder="Transcript will appear here..."></div>
+            </section>
+
+            <section class="medical-note-section">
+                <div class="section-header">
+                    <h2>Medical Note</h2>
+                    <button id="copyBtn" class="btn btn-copy">Copy Note</button>
+                </div>
+                <textarea id="medicalNote" class="text-input" placeholder="Generated medical note will appear here..."></textarea>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

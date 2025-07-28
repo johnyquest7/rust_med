@@ -1,0 +1,20 @@
+[package]
+name = "OnDevice_Medical_Note"
+version = "0.1.0"
+description = "Medical Note Generator"
+authors = ["you"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0.0", features = [] }
+tauri-plugin-fs = { version = "2.0.0" }
+tauri-plugin-shell = { version = "2.0.0" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[features]
+# This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]

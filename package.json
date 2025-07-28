@@ -1,0 +1,12 @@
+{
+  "name": "medical-note-generator",
+  "version": "0.1.0",
+  "description": "Medical Note Generator built with Tauri",
+  "scripts": {
+    "dev": "cargo tauri dev",
+    "build": "cargo tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

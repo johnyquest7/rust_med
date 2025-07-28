@@ -1,0 +1,26 @@
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+
+# Binaries (don't commit large model files)
+binaries/models/*.gguf
+binaries/whisperfile*
+binaries/llamafile*
