@@ -118,6 +118,11 @@ export class NotesManager {
 
     groupNotesByDate() {
         const grouped = {};
+        const today = new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
         
         this.notes.forEach(note => {
             // Parse the created_at timestamp
@@ -144,11 +149,28 @@ export class NotesManager {
         sortedDates.forEach(date => {
             result.push({
                 date: date,
-                notes: grouped[date]
+                notes: grouped[date],
+                isToday: date === today
             });
         });
         
         return result;
+    }
+    
+    getTodaysNotes() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Start of today
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1); // Start of tomorrow
+        
+        return this.notes.filter(note => {
+            const noteDate = new Date(note.created_at);
+            return noteDate >= today && noteDate < tomorrow;
+        });
+    }
+    
+    getTodaysNotesCount() {
+        return this.getTodaysNotes().length;
     }
 
     formatNoteDate(dateString) {

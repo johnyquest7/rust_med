@@ -7,18 +7,19 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Sidebar for saved notes -->
-    <div id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <h2>Saved Notes</h2>
-            <button id="sidebarToggle" class="sidebar-toggle">☰</button>
+    <div class="app-wrapper">
+        <!-- Sidebar for saved notes -->
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h2>Saved Notes</h2>
+                <button id="sidebarToggle" class="sidebar-toggle">☰</button>
+            </div>
+            <div id="notesList" class="notes-list">
+                <!-- Notes will be dynamically populated here -->
+            </div>
         </div>
-        <div id="notesList" class="notes-list">
-            <!-- Notes will be dynamically populated here -->
-        </div>
-    </div>
 
-    <div class="container">
+        <div class="container">
         <header>
             <h1>Medical Note Generator</h1>
             <div id="status" class="status">Ready</div>
@@ -53,11 +54,15 @@
                     </select>
                 </div>
                 <button id="startBtn" class="btn btn-primary">Start Recording</button>
+                <button id="pauseBtn" class="btn btn-pause" disabled>Pause</button>
                 <button id="stopBtn" class="btn btn-secondary" disabled>Stop Recording</button>
                 <button id="saveBtn" class="btn btn-save" disabled>Save Note</button>
                 <div class="recording-indicator">
                     <div id="recordingDot" class="recording-dot"></div>
                     <span id="recordingText">Not Recording</span>
+                </div>
+                <div class="waveform-container">
+                    <canvas id="waveform" width="400" height="100"></canvas>
                 </div>
             </section>
 
@@ -78,6 +83,73 @@
         <footer class="disclaimer">
             <p>⚠️ Generated notes are drafts requiring healthcare provider review and approval before use in patient care. LLM can make mistakes and hallucinate.</p>
         </footer>
+    </div>
+
+        <!-- Settings Panel -->
+        <div id="settingsPanel" class="settings-panel collapsed">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button id="settingsToggle" class="settings-toggle">⚙️</button>
+            </div>
+            
+            <div class="settings-content">
+                <!-- User Info Section -->
+                <section class="settings-section">
+                    <h3>User Account</h3>
+                    <div class="user-info">
+                        <div class="user-avatar">👤</div>
+                        <div class="user-details">
+                            <p class="username">Guest User</p>
+                            <button class="btn-small btn-login">Login</button>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Model Settings Section -->
+                <section class="settings-section">
+                    <h3>AI Models</h3>
+                    
+                    <div class="model-setting">
+                        <label>Transcription Model:</label>
+                        <div>
+                            <select id="transcriptionModel" class="model-select">
+                                <option value="whisper-tiny">Whisper Tiny (39MB)</option>
+                                <option value="whisper-small">Whisper Small (244MB)</option>
+                                <option value="whisper-medium">Whisper Medium (1.5GB)</option>
+                            </select>
+                            <button class="btn-small btn-download">Download</button>
+                        </div>
+                    </div>
+                    
+                    <div class="model-setting">
+                        <label>Language Model:</label>
+                        <div>
+                            <select id="llmModel" class="model-select">
+                                <option value="med_llama">Medical Llama (4GB)</option>
+                                <option value="llama2-7b">Llama 2 7B (4GB)</option>
+                                <option value="mistral-7b">Mistral 7B (4GB)</option>
+                            </select>
+                            <button class="btn-small btn-download">Download</button>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Advanced Settings -->
+                <section class="settings-section">
+                    <h3>Advanced</h3>
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="autoSave"> Auto-save notes
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="streamingMode" checked> Enable streaming output
+                        </label>
+                    </div>
+                </section>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="main.js"></script>

@@ -87,6 +87,9 @@ class MedicalNoteGenerator {
         this.notes.onNotesUpdate((notes) => {
             const groupedNotes = this.notes.groupNotesByDate();
             this.ui.updateNotesList(groupedNotes);
+            
+            // Auto-open sidebar if there are notes for today
+            this.autoOpenSidebarForTodaysNotes(groupedNotes);
         });
 
         // Listen for note selection
@@ -102,11 +105,27 @@ class MedicalNoteGenerator {
             this.notes.selectNote(noteId);
         });
     }
+    
+    autoOpenSidebarForTodaysNotes(groupedNotes) {
+        // Check if there are notes for today
+        const todayGroup = groupedNotes.find(group => group.isToday);
+        
+        if (todayGroup && todayGroup.notes.length > 0) {
+            // Open sidebar if it's collapsed and there are today's notes
+            this.ui.ensureSidebarOpen();
+            
+            // Scroll to today's notes after a brief delay to allow UI updates
+            setTimeout(() => {
+                this.ui.scrollToTodaysNotes();
+            }, 300);
+        }
+    }
 
     bindEvents() {
         // Recording controls
         this.ui.bindStartButton(() => this.handleStartRecording());
         this.ui.bindStopButton(() => this.handleStopRecording());
+        this.ui.bindPauseButton(() => this.handlePauseResumeRecording());
         this.ui.bindCopyButton(() => this.ui.copyNote());
         this.ui.bindTestButton(() => this.ui.testMicrophone());
         this.ui.bindSaveButton(() => this.handleSaveNote());
@@ -133,10 +152,50 @@ class MedicalNoteGenerator {
             this.ui.startTimer();
             this.ui.updateRecordingState(true);
             
+            // Start waveform visualization
+            const stream = this.recording.getStream();
+            if (stream) {
+                this.ui.startWaveform(stream);
+            }
+            
+            // Check if pause is supported
+            if (!this.recording.pauseResumeSupported) {
+                this.ui.updateStatus('Recording... (pause not supported in this browser)');
+            }
+            
         } catch (error) {
             const errorMessage = handleError(error, 'start recording');
             this.ui.showError(errorMessage);
             this.ui.updateRecordingState(false);
+            this.ui.stopWaveform(); // Ensure waveform is stopped on error
+        }
+    }
+
+    async handlePauseResumeRecording() {
+        try {
+            console.log('handlePauseResumeRecording called. isPaused:', this.recording.getIsPaused());
+            
+            if (this.recording.getIsPaused()) {
+                // Resume recording
+                this.ui.updateStatus('Resuming recording...');
+                this.recording.resumeRecording();
+                this.ui.updateRecordingState(true, false);
+                this.ui.startTimer(); // Resume timer
+                this.ui.resumeWaveform(); // Resume waveform
+                console.log('Recording resumed');
+            } else {
+                // Pause recording
+                this.ui.updateStatus('Pausing recording...');
+                this.recording.pauseRecording();
+                this.ui.updateRecordingState(true, true);
+                this.ui.stopTimer(true); // Pause timer
+                this.ui.pauseWaveform(); // Pause waveform
+                console.log('Recording paused');
+            }
+        } catch (error) {
+            console.error('Error in handlePauseResumeRecording:', error);
+            const errorMessage = handleError(error, 'pause/resume recording');
+            this.ui.showError(errorMessage);
         }
     }
 
@@ -147,6 +206,7 @@ class MedicalNoteGenerator {
             this.recording.stopRecording();
             this.ui.stopTimer();
             this.ui.updateRecordingState(false);
+            this.ui.stopWaveform(); // Stop waveform visualization
             
             // Process the recorded audio
             await this.processRecording();
@@ -155,6 +215,7 @@ class MedicalNoteGenerator {
             const errorMessage = handleError(error, 'stop recording');
             this.ui.showError(errorMessage);
             this.ui.updateRecordingState(false);
+            this.ui.stopWaveform(); // Ensure waveform is stopped on error
         }
     }
 
@@ -268,6 +329,7 @@ class MedicalNoteGenerator {
         this.recording.reset();
         this.transcription.clearResults();
         this.ui.clearResults();
+        this.ui.stopWaveform(); // Stop waveform visualization
         this.ui.updateStatus('Ready');
         this.lastTranscript = '';
         this.lastMedicalNote = '';
