@@ -9,6 +9,8 @@ use tauri_plugin_shell::ShellExt;
 use std::path::PathBuf;
 use std::fs;
 use chrono::{DateTime, Local};
+use std::io::{BufRead, BufReader};
+use std::process::Stdio;
 
 #[derive(Serialize)]
 struct TranscriptionResult {
@@ -482,13 +484,11 @@ Medical transcript:
     println!("{}", prompt);
     println!("=== END PROMPT ===");
     
-    println!("Executing llamafile with absolute model path: {:?}", model_path);
-
     // Execute llamafile with supported parameters only
-    let output = app
-        .shell()
-        .command(&llamafile_path)
-        .current_dir(&project_root)  // Run from project root
+    println!("Executing llamafile with absolute model path: {:?}", model_path);
+    
+    let mut cmd = std::process::Command::new(&llamafile_path);
+    cmd.current_dir(&project_root)
         .args([
             "-m", &model_path.to_string_lossy(),
             "--temp", "0.2",           // Low temp for consistent output
@@ -503,30 +503,41 @@ Medical transcript:
             "--log-disable",           // Disable logging
             "-p", &prompt
         ])
-        .output()
-        .await
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    
+    let mut child = cmd.spawn()
         .map_err(|e| format!("Failed to execute llamafile: {}", e))?;
 
-    println!("Llamafile exit status: {:?}", output.status);
-    println!("Llamafile stdout length: {}", output.stdout.len());
-    println!("Llamafile stderr length: {}", output.stderr.len());
-
-    // CRITICAL: Print the raw output for debugging
-    let stdout_str = String::from_utf8_lossy(&output.stdout);
-    println!("=== RAW LLAMAFILE OUTPUT START ===");
-    println!("{}", stdout_str);
-    println!("=== RAW LLAMAFILE OUTPUT END ===");
-
-    if !output.stderr.is_empty() {
-        let stderr_str = String::from_utf8_lossy(&output.stderr);
-        println!("Llamafile stderr: {}", stderr_str);
+    // Stream the output
+    let stdout = child.stdout.take().ok_or("Failed to get stdout")?;
+    let reader = BufReader::new(stdout);
+    let mut accumulated_output = String::new();
+    let mut is_generating = false;
+    
+    for line in reader.lines() {
+        if let Ok(line) = line {
+            accumulated_output.push_str(&line);
+            accumulated_output.push('\n');
+            
+            // Start streaming after we see the initial pattern
+            if !is_generating && (line.contains("S:") || line.contains("1. Presenting Illness")) {
+                is_generating = true;
+            }
+            
+            if is_generating {
+                // Emit the raw output directly without cleaning for real-time display
+                app.emit("note-generation-stream", &line).ok();
+            }
+        }
     }
 
-    if output.status.success() {
-        let note = clean_llm_output(&stdout_str);
-        println!("=== CLEANED OUTPUT START ===");
-        println!("{}", note);
-        println!("=== CLEANED OUTPUT END ===");
+    // Wait for the process to complete
+    let status = child.wait().map_err(|e| format!("Failed to wait for llamafile: {}", e))?;
+
+    if status.success() {
+        // Clean the final output
+        let note = clean_llm_output(&accumulated_output);
         println!("Generated note length: {}", note.len());
         
         if note.trim().is_empty() {
@@ -537,19 +548,19 @@ Medical transcript:
             });
         }
         
+        // Send the final cleaned note
+        app.emit("note-generation-complete", &note).ok();
+        
         Ok(MedicalNoteResult {
             success: true,
             note,
             error: None,
         })
     } else {
-        let stderr_str = String::from_utf8_lossy(&output.stderr);
-        println!("Llamafile error: {}", stderr_str);
-        
         Ok(MedicalNoteResult {
             success: false,
             note: String::new(),
-            error: Some(format!("Note generation failed: {}", stderr_str)),
+            error: Some("Note generation failed".to_string()),
         })
     }
 }

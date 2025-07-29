@@ -67,6 +67,19 @@ class MedicalNoteGenerator {
                 this.lastMedicalNote = message;
             }
         });
+        
+        // Listen for note generation streaming
+        this.transcription.onNoteGenerationStream((streamedNote) => {
+            this.ui.showMedicalNote(streamedNote);
+        });
+        
+        // Listen for note generation completion
+        this.transcription.onNoteGenerationComplete((finalNote) => {
+            this.ui.showMedicalNote(finalNote);
+            this.lastMedicalNote = finalNote;
+            this.ui.updateStatus('Medical note generated successfully!');
+            this.ui.enableSaveButton(true);
+        });
     }
 
     setupNotesListeners() {

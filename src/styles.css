@@ -391,6 +391,24 @@ h2 {
     to { opacity: 1; }
 }
 
+/* Disclaimer Footer */
+.disclaimer {
+    background: rgba(255, 243, 224, 0.95);
+    border-top: 2px solid #ff9800;
+    padding: 15px 30px;
+    margin-top: 20px;
+    text-align: center;
+    border-radius: 0 0 20px 20px;
+}
+
+.disclaimer p {
+    color: #e65100;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 0;
+    line-height: 1.4;
+}
+
 @media (max-width: 768px) {
     body {
         flex-direction: column;
