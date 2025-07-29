@@ -1,11 +1,15 @@
 // UI Manager Module - Handles all user interface interactions and updates
+import { WaveformVisualizer } from './waveformVisualizer.js';
+
 export class UIManager {
     constructor() {
         this.elements = {};
         this.recordingTimer = null;
         this.recordingStartTime = null;
+        this.pausedTime = null;
         this.availableDevices = [];
         this.selectedDeviceId = null;
+        this.waveformVisualizer = null;
         this.initializeElements();
         this.createDynamicElements();
     }
@@ -14,6 +18,7 @@ export class UIManager {
         this.elements = {
             startBtn: document.getElementById('startBtn'),
             stopBtn: document.getElementById('stopBtn'),
+            pauseBtn: document.getElementById('pauseBtn'),
             saveBtn: document.getElementById('saveBtn'),
             status: document.getElementById('status'),
             transcript: document.getElementById('transcript'),
@@ -29,15 +34,25 @@ export class UIManager {
             // Sidebar elements
             sidebar: document.getElementById('sidebar'),
             sidebarToggle: document.getElementById('sidebarToggle'),
-            notesList: document.getElementById('notesList')
+            notesList: document.getElementById('notesList'),
+            // Settings panel elements
+            settingsPanel: document.getElementById('settingsPanel'),
+            settingsToggle: document.getElementById('settingsToggle')
         };
         
         this.setupSidebarToggle();
+        this.setupSettingsToggle();
     }
 
     createDynamicElements() {
         this.createTimerDisplay();
         this.createMicrophoneSelector();
+        this.initializeWaveform();
+    }
+    
+    initializeWaveform() {
+        // Initialize waveform visualizer
+        this.waveformVisualizer = new WaveformVisualizer('waveform');
     }
 
     createTimerDisplay() {
@@ -219,7 +234,14 @@ export class UIManager {
     }
 
     startTimer() {
-        this.recordingStartTime = Date.now();
+        if (!this.recordingStartTime) {
+            this.recordingStartTime = Date.now();
+        } else if (this.pausedTime) {
+            // Resume from paused time
+            this.recordingStartTime += (Date.now() - this.pausedTime);
+            this.pausedTime = null;
+        }
+        
         this.recordingTimer = setInterval(() => {
             const elapsed = Date.now() - this.recordingStartTime;
             const minutes = Math.floor(elapsed / 60000);
@@ -234,25 +256,37 @@ export class UIManager {
         }, 1000);
     }
 
-    stopTimer() {
+    stopTimer(isPause = false) {
         if (this.recordingTimer) {
             clearInterval(this.recordingTimer);
             this.recordingTimer = null;
         }
         
-        if (this.elements.timerDisplay) {
-            this.elements.timerDisplay.style.borderColor = '#ddd';
-            this.elements.timerDisplay.style.background = 'rgba(255, 255, 255, 0.9)';
+        if (isPause) {
+            this.pausedTime = Date.now();
+        } else {
+            // Full stop - reset everything
+            this.recordingStartTime = null;
+            this.pausedTime = null;
+            
+            if (this.elements.timerDisplay) {
+                this.elements.timerDisplay.style.borderColor = '#ddd';
+                this.elements.timerDisplay.style.background = 'rgba(255, 255, 255, 0.9)';
+            }
         }
     }
 
-    updateRecordingState(isRecording) {
+    updateRecordingState(isRecording, isPaused = false) {
         if (this.elements.startBtn) this.elements.startBtn.disabled = isRecording;
         if (this.elements.stopBtn) this.elements.stopBtn.disabled = !isRecording;
+        if (this.elements.pauseBtn) {
+            this.elements.pauseBtn.disabled = !isRecording;
+            this.elements.pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
+        }
         if (this.elements.micSelect) this.elements.micSelect.disabled = isRecording;
         
         if (this.elements.recordingDot) {
-            if (isRecording) {
+            if (isRecording && !isPaused) {
                 this.elements.recordingDot.classList.add('active');
             } else {
                 this.elements.recordingDot.classList.remove('active');
@@ -260,7 +294,13 @@ export class UIManager {
         }
         
         if (this.elements.recordingText) {
-            this.elements.recordingText.textContent = isRecording ? 'Recording...' : 'Not Recording';
+            if (!isRecording) {
+                this.elements.recordingText.textContent = 'Not Recording';
+            } else if (isPaused) {
+                this.elements.recordingText.textContent = 'Paused';
+            } else {
+                this.elements.recordingText.textContent = 'Recording...';
+            }
         }
     }
 
@@ -418,6 +458,18 @@ export class UIManager {
             this.elements.testBtn.addEventListener('click', callback);
         }
     }
+    
+    bindPauseButton(callback) {
+        if (this.elements.pauseBtn) {
+            console.log('Binding pause button click event');
+            this.elements.pauseBtn.addEventListener('click', (e) => {
+                console.log('Pause button clicked');
+                callback();
+            });
+        } else {
+            console.error('Pause button not found in DOM');
+        }
+    }
 
     getSelectedNoteType() {
         return this.elements.noteType ? this.elements.noteType.value : 'soap';
@@ -455,30 +507,91 @@ export class UIManager {
             });
         }
     }
+    
+    ensureSidebarOpen() {
+        if (this.elements.sidebar && this.elements.sidebar.classList.contains('collapsed')) {
+            this.elements.sidebar.classList.remove('collapsed');
+        }
+    }
+    
+    isSidebarOpen() {
+        return this.elements.sidebar && !this.elements.sidebar.classList.contains('collapsed');
+    }
+    
+    scrollToTodaysNotes() {
+        const todaysNotesElement = this.elements.notesList?.querySelector('.today-notes');
+        if (todaysNotesElement && this.elements.notesList) {
+            todaysNotesElement.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start',
+                inline: 'nearest'
+            });
+        }
+    }
+    
+    // Settings panel methods
+    setupSettingsToggle() {
+        if (this.elements.settingsToggle && this.elements.settingsPanel) {
+            this.elements.settingsToggle.addEventListener('click', () => {
+                this.elements.settingsPanel.classList.toggle('collapsed');
+            });
+        }
+    }
 
     updateNotesList(groupedNotes) {
         if (!this.elements.notesList) return;
 
         this.elements.notesList.innerHTML = '';
+        
+        // Update sidebar header with today's notes count
+        this.updateSidebarHeader(groupedNotes);
 
         if (groupedNotes.length === 0) {
-            this.elements.notesList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No saved notes yet</div>';
+            this.elements.notesList.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #666;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">📝</div>
+                    <div>No saved notes yet</div>
+                    <div style="font-size: 0.9rem; margin-top: 10px; color: #999;">
+                        Start recording to create your first note
+                    </div>
+                </div>
+            `;
             return;
         }
 
         groupedNotes.forEach(group => {
             const dateGroup = document.createElement('div');
             dateGroup.className = 'note-date-group';
+            
+            // Add special styling for today's notes
+            if (group.isToday) {
+                dateGroup.classList.add('today-notes');
+            }
 
             const dateHeader = document.createElement('div');
             dateHeader.className = 'note-date-header';
-            dateHeader.textContent = group.date;
+            
+            // Add "Today" indicator and note count
+            if (group.isToday) {
+                dateHeader.innerHTML = `
+                    <span class="today-indicator">📅 ${group.date}</span>
+                    <span class="note-count">${group.notes.length} note${group.notes.length === 1 ? '' : 's'}</span>
+                `;
+            } else {
+                dateHeader.textContent = group.date;
+            }
+            
             dateGroup.appendChild(dateHeader);
 
             group.notes.forEach(note => {
                 const noteItem = document.createElement('div');
                 noteItem.className = 'note-item';
                 noteItem.dataset.noteId = note.id;
+                
+                // Add special styling for today's note items
+                if (group.isToday) {
+                    noteItem.classList.add('today-note-item');
+                }
 
                 const noteHeader = document.createElement('div');
                 noteHeader.className = 'note-item-header';
@@ -550,6 +663,57 @@ export class UIManager {
             if (this.elements.noteType) this.elements.noteType.value = note.note_type;
             
             this.updateStatus(`Viewing note from ${new Date(note.created_at).toLocaleString()}`);
+        }
+    }
+    
+    // Waveform visualization methods
+    startWaveform(stream) {
+        if (this.waveformVisualizer) {
+            this.waveformVisualizer.startVisualization(stream);
+        }
+    }
+    
+    stopWaveform() {
+        if (this.waveformVisualizer) {
+            this.waveformVisualizer.stopVisualization();
+        }
+    }
+    
+    pauseWaveform() {
+        if (this.waveformVisualizer) {
+            this.waveformVisualizer.pauseVisualization();
+        }
+    }
+    
+    resumeWaveform() {
+        if (this.waveformVisualizer) {
+            this.waveformVisualizer.resumeVisualization();
+        }
+    }
+    
+    updateSidebarHeader(groupedNotes) {
+        const sidebarHeader = this.elements.sidebar?.querySelector('.sidebar-header h2');
+        if (!sidebarHeader) return;
+        
+        // Find today's notes
+        const todayGroup = groupedNotes.find(group => group.isToday);
+        const todayCount = todayGroup ? todayGroup.notes.length : 0;
+        
+        if (todayCount > 0) {
+            sidebarHeader.innerHTML = `
+                Saved Notes
+                <span class="today-badge">${todayCount} today</span>
+            `;
+        } else {
+            const totalCount = groupedNotes.reduce((sum, group) => sum + group.notes.length, 0);
+            if (totalCount > 0) {
+                sidebarHeader.innerHTML = `
+                    Saved Notes
+                    <span class="total-badge">${totalCount} total</span>
+                `;
+            } else {
+                sidebarHeader.textContent = 'Saved Notes';
+            }
         }
     }
 }

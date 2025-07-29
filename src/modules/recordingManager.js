@@ -4,11 +4,25 @@ import { AudioConverter } from './audioConverter.js';
 export class RecordingManager {
     constructor() {
         this.isRecording = false;
+        this.isPaused = false;
         this.mediaRecorder = null;
         this.audioChunks = [];
         this.recordedBlob = null;
         this.convertedBlob = null;
         this.selectedFormat = null;
+        this.stream = null;
+        this.checkPauseResumeSupport();
+    }
+    
+    checkPauseResumeSupport() {
+        // Check if the browser supports pause/resume
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.prototype.pause && MediaRecorder.prototype.resume) {
+            console.log('Browser supports MediaRecorder pause/resume');
+            this.pauseResumeSupported = true;
+        } else {
+            console.warn('Browser does not support MediaRecorder pause/resume');
+            this.pauseResumeSupported = false;
+        }
     }
 
     async startRecording(deviceId) {
@@ -25,7 +39,7 @@ export class RecordingManager {
                 volume: 1.0
             };
 
-            const stream = await navigator.mediaDevices.getUserMedia({ 
+            this.stream = await navigator.mediaDevices.getUserMedia({ 
                 audio: audioConstraints
             });
 
@@ -49,7 +63,7 @@ export class RecordingManager {
                 throw new Error('No audio recording formats supported by your browser');
             }
 
-            this.mediaRecorder = new MediaRecorder(stream, {
+            this.mediaRecorder = new MediaRecorder(this.stream, {
                 mimeType: this.selectedFormat.mime,
                 audioBitsPerSecond: 128000
             });
@@ -65,8 +79,14 @@ export class RecordingManager {
                 };
 
                 this.mediaRecorder.onstop = () => {
-                    this.isRecording = false;
-                    resolve('Recording stopped successfully');
+                    if (!this.isPaused) {
+                        // Normal stop
+                        this.isRecording = false;
+                        resolve('Recording stopped successfully');
+                    } else {
+                        // Paused stop - keep recording state true
+                        console.log('Recording paused (via stop)');
+                    }
                 };
 
                 this.mediaRecorder.onerror = (event) => {
@@ -76,7 +96,16 @@ export class RecordingManager {
                 };
 
                 this.mediaRecorder.onstart = () => {
+                    console.log('MediaRecorder started');
                     resolve('Recording started successfully');
+                };
+                
+                this.mediaRecorder.onpause = () => {
+                    console.log('MediaRecorder paused');
+                };
+                
+                this.mediaRecorder.onresume = () => {
+                    console.log('MediaRecorder resumed');
                 };
 
                 this.mediaRecorder.start(500); // Record in 500ms chunks
@@ -89,10 +118,84 @@ export class RecordingManager {
         }
     }
 
+    pauseRecording() {
+        try {
+            console.log('Attempting to pause recording. MediaRecorder state:', this.mediaRecorder?.state);
+            console.log('Pause/resume supported:', this.pauseResumeSupported);
+            
+            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                if (this.pauseResumeSupported) {
+                    // Use native pause if supported
+                    this.mediaRecorder.pause();
+                } else {
+                    // Fallback: stop recording but keep the stream
+                    this.mediaRecorder.stop();
+                    // The onstop handler will be triggered, but we'll handle it differently when paused
+                }
+                this.isPaused = true;
+                console.log('Recording paused successfully');
+                return true;
+            } else {
+                throw new Error(`Recording not active. Current state: ${this.mediaRecorder?.state || 'no recorder'}`);
+            }
+        } catch (error) {
+            console.error('Error in pauseRecording:', error);
+            throw new Error(`Error pausing recording: ${error.message}`);
+        }
+    }
+    
+    async resumeRecording() {
+        try {
+            console.log('Attempting to resume recording. MediaRecorder state:', this.mediaRecorder?.state);
+            
+            if (this.pauseResumeSupported && this.mediaRecorder && this.mediaRecorder.state === 'paused') {
+                // Use native resume if supported
+                this.mediaRecorder.resume();
+                this.isPaused = false;
+                console.log('Recording resumed successfully');
+                return true;
+            } else if (!this.pauseResumeSupported && this.isPaused && this.stream) {
+                // Fallback: create new MediaRecorder with same stream
+                this.mediaRecorder = new MediaRecorder(this.stream, {
+                    mimeType: this.selectedFormat.mime,
+                    audioBitsPerSecond: 128000
+                });
+                
+                // Re-attach event handlers
+                this.mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        this.audioChunks.push(event.data);
+                    }
+                };
+                
+                this.mediaRecorder.onstop = () => {
+                    if (!this.isPaused) {
+                        this.isRecording = false;
+                    }
+                };
+                
+                this.mediaRecorder.onstart = () => {
+                    console.log('MediaRecorder resumed (restarted)');
+                };
+                
+                this.mediaRecorder.start(500);
+                this.isPaused = false;
+                console.log('Recording resumed successfully (via restart)');
+                return true;
+            } else {
+                throw new Error(`Cannot resume. isPaused: ${this.isPaused}, stream exists: ${!!this.stream}`);
+            }
+        } catch (error) {
+            console.error('Error in resumeRecording:', error);
+            throw new Error(`Error resuming recording: ${error.message}`);
+        }
+    }
+
     stopRecording() {
         try {
-            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+            if (this.mediaRecorder && (this.mediaRecorder.state === 'recording' || this.mediaRecorder.state === 'paused')) {
                 this.mediaRecorder.stop();
+                this.isPaused = false;
                 return true;
             } else {
                 throw new Error('Recording not active');
@@ -126,13 +229,15 @@ export class RecordingManager {
     }
 
     cleanup() {
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+        }
         if (this.mediaRecorder) {
-            if (this.mediaRecorder.stream) {
-                this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            }
             this.mediaRecorder = null;
         }
         this.isRecording = false;
+        this.isPaused = false;
     }
 
     getRecordedBlob() {
@@ -146,6 +251,14 @@ export class RecordingManager {
     getIsRecording() {
         return this.isRecording;
     }
+    
+    getIsPaused() {
+        return this.isPaused;
+    }
+    
+    getStream() {
+        return this.stream;
+    }
 
     reset() {
         this.cleanup();
@@ -153,5 +266,6 @@ export class RecordingManager {
         this.recordedBlob = null;
         this.convertedBlob = null;
         this.selectedFormat = null;
+        this.isPaused = false;
     }
 }

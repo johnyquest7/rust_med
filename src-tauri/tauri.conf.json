@@ -11,10 +11,12 @@
     "windows": [
       {
         "title": "Medical Note Generator", 
-        "width": 900,
-        "height": 700,
+        "width": 1920,
+        "height": 1080,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "maximized": true,
+        "center": true
       }
     ]
   },
