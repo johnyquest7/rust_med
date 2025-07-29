@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo tauri:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  }
+}

@@ -14,14 +14,25 @@ export class UIManager {
         this.elements = {
             startBtn: document.getElementById('startBtn'),
             stopBtn: document.getElementById('stopBtn'),
+            saveBtn: document.getElementById('saveBtn'),
             status: document.getElementById('status'),
             transcript: document.getElementById('transcript'),
             medicalNote: document.getElementById('medicalNote'),
             copyBtn: document.getElementById('copyBtn'),
             recordingDot: document.getElementById('recordingDot'),
             recordingText: document.getElementById('recordingText'),
-            noteType: document.getElementById('noteType')
+            noteType: document.getElementById('noteType'),
+            // Patient info fields
+            firstName: document.getElementById('firstName'),
+            lastName: document.getElementById('lastName'),
+            dob: document.getElementById('dob'),
+            // Sidebar elements
+            sidebar: document.getElementById('sidebar'),
+            sidebarToggle: document.getElementById('sidebarToggle'),
+            notesList: document.getElementById('notesList')
         };
+        
+        this.setupSidebarToggle();
     }
 
     createDynamicElements() {
@@ -410,5 +421,135 @@ export class UIManager {
 
     getSelectedNoteType() {
         return this.elements.noteType ? this.elements.noteType.value : 'soap';
+    }
+
+    // Patient info methods
+    getPatientInfo() {
+        return {
+            firstName: this.elements.firstName ? this.elements.firstName.value.trim() : '',
+            lastName: this.elements.lastName ? this.elements.lastName.value.trim() : '',
+            dob: this.elements.dob ? this.elements.dob.value : ''
+        };
+    }
+
+    validatePatientInfo() {
+        const info = this.getPatientInfo();
+        if (!info.firstName || !info.lastName || !info.dob) {
+            this.showError('Please fill in all patient information fields');
+            return false;
+        }
+        return true;
+    }
+
+    clearPatientInfo() {
+        if (this.elements.firstName) this.elements.firstName.value = '';
+        if (this.elements.lastName) this.elements.lastName.value = '';
+        if (this.elements.dob) this.elements.dob.value = '';
+    }
+
+    // Sidebar methods
+    setupSidebarToggle() {
+        if (this.elements.sidebarToggle && this.elements.sidebar) {
+            this.elements.sidebarToggle.addEventListener('click', () => {
+                this.elements.sidebar.classList.toggle('collapsed');
+            });
+        }
+    }
+
+    updateNotesList(groupedNotes) {
+        if (!this.elements.notesList) return;
+
+        this.elements.notesList.innerHTML = '';
+
+        if (groupedNotes.length === 0) {
+            this.elements.notesList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No saved notes yet</div>';
+            return;
+        }
+
+        groupedNotes.forEach(group => {
+            const dateGroup = document.createElement('div');
+            dateGroup.className = 'note-date-group';
+
+            const dateHeader = document.createElement('div');
+            dateHeader.className = 'note-date-header';
+            dateHeader.textContent = group.date;
+            dateGroup.appendChild(dateHeader);
+
+            group.notes.forEach(note => {
+                const noteItem = document.createElement('div');
+                noteItem.className = 'note-item';
+                noteItem.dataset.noteId = note.id;
+
+                const noteHeader = document.createElement('div');
+                noteHeader.className = 'note-item-header';
+                noteHeader.textContent = `${note.first_name} ${note.last_name}`;
+
+                const noteDetails = document.createElement('div');
+                noteDetails.className = 'note-item-details';
+                const dob = new Date(note.dob).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                const time = new Date(note.created_at).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                noteDetails.textContent = `DOB: ${dob} • ${time} • ${note.note_type.toUpperCase()}`;
+
+                noteItem.appendChild(noteHeader);
+                noteItem.appendChild(noteDetails);
+                dateGroup.appendChild(noteItem);
+            });
+
+            this.elements.notesList.appendChild(dateGroup);
+        });
+    }
+
+    bindNoteClickHandler(callback) {
+        if (this.elements.notesList) {
+            this.elements.notesList.addEventListener('click', (e) => {
+                const noteItem = e.target.closest('.note-item');
+                if (noteItem) {
+                    // Remove active class from all notes
+                    document.querySelectorAll('.note-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    // Add active class to clicked note
+                    noteItem.classList.add('active');
+                    // Call the callback with note ID
+                    callback(noteItem.dataset.noteId);
+                }
+            });
+        }
+    }
+
+    // Save button methods
+    enableSaveButton(enable = true) {
+        if (this.elements.saveBtn) {
+            this.elements.saveBtn.disabled = !enable;
+        }
+    }
+
+    bindSaveButton(callback) {
+        if (this.elements.saveBtn) {
+            this.elements.saveBtn.addEventListener('click', callback);
+        }
+    }
+
+    // Display selected note
+    displaySelectedNote(note) {
+        if (note) {
+            this.showTranscript(note.transcript);
+            this.showMedicalNote(note.medical_note);
+            
+            // Update patient info fields
+            if (this.elements.firstName) this.elements.firstName.value = note.first_name;
+            if (this.elements.lastName) this.elements.lastName.value = note.last_name;
+            if (this.elements.dob) this.elements.dob.value = note.dob;
+            if (this.elements.noteType) this.elements.noteType.value = note.note_type;
+            
+            this.updateStatus(`Viewing note from ${new Date(note.created_at).toLocaleString()}`);
+        }
     }
 }

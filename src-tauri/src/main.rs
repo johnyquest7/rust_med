@@ -4,9 +4,13 @@
 )]
 
 use tauri::{Manager, Emitter};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use tauri_plugin_shell::ShellExt;
 use std::path::PathBuf;
+use std::fs;
+use chrono::{DateTime, Local};
+use std::io::{BufRead, BufReader};
+use std::process::Stdio;
 
 #[derive(Serialize)]
 struct TranscriptionResult {
@@ -19,6 +23,32 @@ struct TranscriptionResult {
 struct MedicalNoteResult {
     success: bool,
     note: String,
+    error: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct PatientNote {
+    id: String,
+    first_name: String,
+    last_name: String,
+    dob: String,
+    note_type: String,
+    transcript: String,
+    medical_note: String,
+    created_at: DateTime<Local>,
+}
+
+#[derive(Serialize)]
+struct SaveNoteResult {
+    success: bool,
+    note_id: Option<String>,
+    error: Option<String>,
+}
+
+#[derive(Serialize)]
+struct LoadNotesResult {
+    success: bool,
+    notes: Vec<PatientNote>,
     error: Option<String>,
 }
 
@@ -454,13 +484,11 @@ Medical transcript:
     println!("{}", prompt);
     println!("=== END PROMPT ===");
     
-    println!("Executing llamafile with absolute model path: {:?}", model_path);
-
     // Execute llamafile with supported parameters only
-    let output = app
-        .shell()
-        .command(&llamafile_path)
-        .current_dir(&project_root)  // Run from project root
+    println!("Executing llamafile with absolute model path: {:?}", model_path);
+    
+    let mut cmd = std::process::Command::new(&llamafile_path);
+    cmd.current_dir(&project_root)
         .args([
             "-m", &model_path.to_string_lossy(),
             "--temp", "0.2",           // Low temp for consistent output
@@ -475,30 +503,41 @@ Medical transcript:
             "--log-disable",           // Disable logging
             "-p", &prompt
         ])
-        .output()
-        .await
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    
+    let mut child = cmd.spawn()
         .map_err(|e| format!("Failed to execute llamafile: {}", e))?;
 
-    println!("Llamafile exit status: {:?}", output.status);
-    println!("Llamafile stdout length: {}", output.stdout.len());
-    println!("Llamafile stderr length: {}", output.stderr.len());
-
-    // CRITICAL: Print the raw output for debugging
-    let stdout_str = String::from_utf8_lossy(&output.stdout);
-    println!("=== RAW LLAMAFILE OUTPUT START ===");
-    println!("{}", stdout_str);
-    println!("=== RAW LLAMAFILE OUTPUT END ===");
-
-    if !output.stderr.is_empty() {
-        let stderr_str = String::from_utf8_lossy(&output.stderr);
-        println!("Llamafile stderr: {}", stderr_str);
+    // Stream the output
+    let stdout = child.stdout.take().ok_or("Failed to get stdout")?;
+    let reader = BufReader::new(stdout);
+    let mut accumulated_output = String::new();
+    let mut is_generating = false;
+    
+    for line in reader.lines() {
+        if let Ok(line) = line {
+            accumulated_output.push_str(&line);
+            accumulated_output.push('\n');
+            
+            // Start streaming after we see the initial pattern
+            if !is_generating && (line.contains("S:") || line.contains("1. Presenting Illness")) {
+                is_generating = true;
+            }
+            
+            if is_generating {
+                // Emit the raw output directly without cleaning for real-time display
+                app.emit("note-generation-stream", &line).ok();
+            }
+        }
     }
 
-    if output.status.success() {
-        let note = clean_llm_output(&stdout_str);
-        println!("=== CLEANED OUTPUT START ===");
-        println!("{}", note);
-        println!("=== CLEANED OUTPUT END ===");
+    // Wait for the process to complete
+    let status = child.wait().map_err(|e| format!("Failed to wait for llamafile: {}", e))?;
+
+    if status.success() {
+        // Clean the final output
+        let note = clean_llm_output(&accumulated_output);
         println!("Generated note length: {}", note.len());
         
         if note.trim().is_empty() {
@@ -509,19 +548,19 @@ Medical transcript:
             });
         }
         
+        // Send the final cleaned note
+        app.emit("note-generation-complete", &note).ok();
+        
         Ok(MedicalNoteResult {
             success: true,
             note,
             error: None,
         })
     } else {
-        let stderr_str = String::from_utf8_lossy(&output.stderr);
-        println!("Llamafile error: {}", stderr_str);
-        
         Ok(MedicalNoteResult {
             success: false,
             note: String::new(),
-            error: Some(format!("Note generation failed: {}", stderr_str)),
+            error: Some("Note generation failed".to_string()),
         })
     }
 }
@@ -656,6 +695,137 @@ fn clean_llm_output(output: &str) -> String {
     result
 }
 
+#[tauri::command]
+async fn save_patient_note(
+    app: tauri::AppHandle,
+    first_name: String,
+    last_name: String,
+    dob: String,
+    note_type: String,
+    transcript: String,
+    medical_note: String,
+) -> Result<SaveNoteResult, String> {
+    println!("Saving patient note for {} {}", first_name, last_name);
+    
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let notes_dir = app_data_dir.join("notes");
+    
+    // Create notes directory if it doesn't exist
+    if !notes_dir.exists() {
+        fs::create_dir_all(&notes_dir).map_err(|e| {
+            format!("Failed to create notes directory: {}", e)
+        })?;
+    }
+    
+    // Generate unique note ID
+    let note_id = format!("{}", chrono::Local::now().timestamp_millis());
+    let created_at = chrono::Local::now();
+    
+    let patient_note = PatientNote {
+        id: note_id.clone(),
+        first_name,
+        last_name,
+        dob,
+        note_type,
+        transcript,
+        medical_note,
+        created_at,
+    };
+    
+    // Save note to JSON file
+    let note_file = notes_dir.join(format!("{}.json", note_id));
+    let json_content = serde_json::to_string_pretty(&patient_note)
+        .map_err(|e| format!("Failed to serialize note: {}", e))?;
+    
+    fs::write(&note_file, json_content)
+        .map_err(|e| format!("Failed to write note file: {}", e))?;
+    
+    println!("Note saved successfully: {:?}", note_file);
+    
+    Ok(SaveNoteResult {
+        success: true,
+        note_id: Some(note_id),
+        error: None,
+    })
+}
+
+#[tauri::command]
+async fn load_patient_notes(app: tauri::AppHandle) -> Result<LoadNotesResult, String> {
+    println!("Loading patient notes");
+    
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let notes_dir = app_data_dir.join("notes");
+    
+    // Check if notes directory exists
+    if !notes_dir.exists() {
+        return Ok(LoadNotesResult {
+            success: true,
+            notes: Vec::new(),
+            error: None,
+        });
+    }
+    
+    let mut notes = Vec::new();
+    
+    // Read all JSON files in the notes directory
+    match fs::read_dir(&notes_dir) {
+        Ok(entries) => {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                        // Read and parse the note file
+                        match fs::read_to_string(&path) {
+                            Ok(content) => {
+                                match serde_json::from_str::<PatientNote>(&content) {
+                                    Ok(note) => notes.push(note),
+                                    Err(e) => println!("Failed to parse note file {:?}: {}", path, e),
+                                }
+                            }
+                            Err(e) => println!("Failed to read note file {:?}: {}", path, e),
+                        }
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            return Ok(LoadNotesResult {
+                success: false,
+                notes: Vec::new(),
+                error: Some(format!("Failed to read notes directory: {}", e)),
+            });
+        }
+    }
+    
+    // Sort notes by creation date (newest first)
+    notes.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    
+    println!("Loaded {} notes", notes.len());
+    
+    Ok(LoadNotesResult {
+        success: true,
+        notes,
+        error: None,
+    })
+}
+
+#[tauri::command]
+async fn delete_patient_note(app: tauri::AppHandle, note_id: String) -> Result<bool, String> {
+    println!("Deleting patient note: {}", note_id);
+    
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let note_file = app_data_dir.join("notes").join(format!("{}.json", note_id));
+    
+    if note_file.exists() {
+        fs::remove_file(&note_file)
+            .map_err(|e| format!("Failed to delete note file: {}", e))?;
+        println!("Note deleted successfully");
+        Ok(true)
+    } else {
+        Err(format!("Note file not found: {}", note_id))
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -664,7 +834,10 @@ fn main() {
             ensure_app_directory,
             validate_audio_file,
             transcribe_audio,
-            generate_medical_note
+            generate_medical_note,
+            save_patient_note,
+            load_patient_notes,
+            delete_patient_note
         ])
         .setup(|app| {
             let resource_dir = app.path().resource_dir().expect("failed to get resource directory");

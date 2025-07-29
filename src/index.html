@@ -7,6 +7,17 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Sidebar for saved notes -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2>Saved Notes</h2>
+            <button id="sidebarToggle" class="sidebar-toggle">☰</button>
+        </div>
+        <div id="notesList" class="notes-list">
+            <!-- Notes will be dynamically populated here -->
+        </div>
+    </div>
+
     <div class="container">
         <header>
             <h1>Medical Note Generator</h1>
@@ -14,6 +25,25 @@
         </header>
 
         <main>
+            <!-- Patient Information Section -->
+            <section class="patient-info">
+                <h2>Patient Information</h2>
+                <div class="patient-fields">
+                    <div class="field-group">
+                        <label for="firstName">First Name:</label>
+                        <input type="text" id="firstName" class="patient-input" placeholder="Enter first name">
+                    </div>
+                    <div class="field-group">
+                        <label for="lastName">Last Name:</label>
+                        <input type="text" id="lastName" class="patient-input" placeholder="Enter last name">
+                    </div>
+                    <div class="field-group">
+                        <label for="dob">Date of Birth:</label>
+                        <input type="date" id="dob" class="patient-input">
+                    </div>
+                </div>
+            </section>
+
             <section class="recording-controls">
                 <div class="note-type-selector">
                     <label for="noteType">Note Type:</label>
@@ -24,6 +54,7 @@
                 </div>
                 <button id="startBtn" class="btn btn-primary">Start Recording</button>
                 <button id="stopBtn" class="btn btn-secondary" disabled>Stop Recording</button>
+                <button id="saveBtn" class="btn btn-save" disabled>Save Note</button>
                 <div class="recording-indicator">
                     <div id="recordingDot" class="recording-dot"></div>
                     <span id="recordingText">Not Recording</span>
@@ -43,6 +74,10 @@
                 <textarea id="medicalNote" class="text-input" placeholder="Generated medical note will appear here..."></textarea>
             </section>
         </main>
+        
+        <footer class="disclaimer">
+            <p>⚠️ Generated notes are drafts requiring healthcare provider review and approval before use in patient care. LLM can make mistakes and hallucinate.</p>
+        </footer>
     </div>
 
     <script type="module" src="main.js"></script>
