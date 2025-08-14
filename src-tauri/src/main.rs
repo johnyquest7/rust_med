@@ -368,7 +368,8 @@ async fn generate_medical_note(
         "llama-2-7b-chat.gguf", 
         "llama-2-13b-chat.gguf",
         "mistral-7b-instruct.gguf",
-        "openchat-3.5.gguf"
+        "openchat-3.5.gguf",
+        "whisper-tiny.en.gguf"
     ];
     
     // Get the current working directory to build absolute paths
@@ -500,7 +501,7 @@ Medical transcript:
             "--ctx-size", "4096",      
             "--no-display-prompt",     // Don't echo prompt
             "--batch-size", "512",
-            "--log-disable",           // Disable logging
+            // "--log-disable",           // Disable logging
             "-p", &prompt
         ])
         .stdout(Stdio::piped())
