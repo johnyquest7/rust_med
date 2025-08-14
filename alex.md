@@ -19,6 +19,7 @@ wget -O whisper-tiny.en.gguf https://huggingface.co/ggerganov/whisper.cpp/resolv
 mv whisper-tiny.en.gguf binaries/models
 
 # Download med_gguf and put in binaries/models/med_llama.gguf
+# Link to models: https://huggingface.co/garcianacho/MedLlama-2-7B-GGUF/tree/main
 
 # convert icon_gen.bat to mac version
 .icon_gen.sh
