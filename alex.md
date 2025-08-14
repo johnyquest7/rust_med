@@ -18,6 +18,8 @@ chmod +x binaries/whisperfile
 wget -O whisper-tiny.en.gguf https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
 mv whisper-tiny.en.gguf binaries/models
 
+# Download med_gguf and put in binaries/models/med_llama.gguf
+
 # convert icon_gen.bat to mac version
 .icon_gen.sh
 

@@ -501,7 +501,7 @@ Medical transcript:
             "--ctx-size", "4096",      
             "--no-display-prompt",     // Don't echo prompt
             "--batch-size", "512",
-            // "--log-disable",           // Disable logging
+            "--log-disable",           // Disable logging
             "-p", &prompt
         ])
         .stdout(Stdio::piped())
