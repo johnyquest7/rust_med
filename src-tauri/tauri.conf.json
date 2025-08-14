@@ -26,7 +26,7 @@
     "resources": [
       "../binaries/whisperfile*",
       "../binaries/llamafile*",
-      "../binaries/models/*",
+      "../binaries/models/*"
     ]
   }
 }
