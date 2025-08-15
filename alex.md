@@ -1,5 +1,4 @@
 ```
-
 # Assume:
 # (a) node is set up
 
@@ -26,3 +25,10 @@ mv whisper-tiny.en.gguf binaries/models
 
 npm run dev
 ```
+
+Thoughts:
+
+- Run the model with transformers.js
+  - Uses webgpu where possible
+  - Can fallback to wasm (CPU) version
+  - Alternatively: i imagine we can could the embed the model into the device using python's llm packages too
