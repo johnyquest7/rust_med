@@ -13,7 +13,7 @@ export class RecordingManager {
         this.stream = null;
         this.checkPauseResumeSupport();
     }
-    
+
     checkPauseResumeSupport() {
         // Check if the browser supports pause/resume
         if (typeof MediaRecorder !== 'undefined' && MediaRecorder.prototype.pause && MediaRecorder.prototype.resume) {
@@ -39,16 +39,24 @@ export class RecordingManager {
                 volume: 1.0
             };
 
-            this.stream = await navigator.mediaDevices.getUserMedia({ 
+            this.stream = await navigator.mediaDevices.getUserMedia({
                 audio: audioConstraints
             });
 
             // Prefer WebM format for better quality, will convert to WAV
             const supportedFormats = [
                 'audio/webm;codecs=opus',
-                'audio/webm', 
+                'audio/webm',
                 'audio/ogg;codecs=opus',
-                'audio/ogg'
+                'audio/ogg',
+                'audio/wav',
+                'audio/wave',
+                'audio/x-wav',
+                'audio/mpeg',
+                'audio/mp3',
+                'audio/mp4',
+                'audio/aac',
+                'audio/flac'
             ];
 
             this.selectedFormat = null;
@@ -99,11 +107,11 @@ export class RecordingManager {
                     console.log('MediaRecorder started');
                     resolve('Recording started successfully');
                 };
-                
+
                 this.mediaRecorder.onpause = () => {
                     console.log('MediaRecorder paused');
                 };
-                
+
                 this.mediaRecorder.onresume = () => {
                     console.log('MediaRecorder resumed');
                 };
@@ -122,7 +130,7 @@ export class RecordingManager {
         try {
             console.log('Attempting to pause recording. MediaRecorder state:', this.mediaRecorder?.state);
             console.log('Pause/resume supported:', this.pauseResumeSupported);
-            
+
             if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
                 if (this.pauseResumeSupported) {
                     // Use native pause if supported
@@ -143,11 +151,11 @@ export class RecordingManager {
             throw new Error(`Error pausing recording: ${error.message}`);
         }
     }
-    
+
     async resumeRecording() {
         try {
             console.log('Attempting to resume recording. MediaRecorder state:', this.mediaRecorder?.state);
-            
+
             if (this.pauseResumeSupported && this.mediaRecorder && this.mediaRecorder.state === 'paused') {
                 // Use native resume if supported
                 this.mediaRecorder.resume();
@@ -160,24 +168,24 @@ export class RecordingManager {
                     mimeType: this.selectedFormat.mime,
                     audioBitsPerSecond: 128000
                 });
-                
+
                 // Re-attach event handlers
                 this.mediaRecorder.ondataavailable = (event) => {
                     if (event.data.size > 0) {
                         this.audioChunks.push(event.data);
                     }
                 };
-                
+
                 this.mediaRecorder.onstop = () => {
                     if (!this.isPaused) {
                         this.isRecording = false;
                     }
                 };
-                
+
                 this.mediaRecorder.onstart = () => {
                     console.log('MediaRecorder resumed (restarted)');
                 };
-                
+
                 this.mediaRecorder.start(500);
                 this.isPaused = false;
                 console.log('Recording resumed successfully (via restart)');
@@ -213,7 +221,7 @@ export class RecordingManager {
             }
 
             this.recordedBlob = new Blob(this.audioChunks, { type: this.selectedFormat.mime });
-            
+
             // Convert to WAV for better whisperfile compatibility
             try {
                 this.convertedBlob = await AudioConverter.webmToWav(this.recordedBlob);
@@ -221,7 +229,7 @@ export class RecordingManager {
             } catch (conversionError) {
                 throw new Error('Audio conversion failed: ' + conversionError.message);
             }
-            
+
         } catch (error) {
             this.cleanup();
             throw new Error(`Failed to process audio: ${error.message}`);
@@ -251,11 +259,11 @@ export class RecordingManager {
     getIsRecording() {
         return this.isRecording;
     }
-    
+
     getIsPaused() {
         return this.isPaused;
     }
-    
+
     getStream() {
         return this.stream;
     }

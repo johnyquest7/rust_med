@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Medical Note Generator", 
+        "title": "Medical Note Generator",
         "width": 1920,
         "height": 1080,
         "resizable": true,
@@ -24,8 +24,8 @@
     "active": true,
     "targets": "all",
     "resources": [
-      "../binaries/whisperfile.exe",
-      "../binaries/llamafile.exe", 
+      "../binaries/whisperfile*",
+      "../binaries/llamafile*",
       "../binaries/models/*"
     ]
   }
