@@ -24,3 +24,6 @@ dist/
 binaries/models/*.gguf
 binaries/whisperfile*
 binaries/llamafile*
+
+# Other
+.cursorrules

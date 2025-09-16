@@ -31,7 +31,7 @@ struct PatientNote {
     id: String,
     first_name: String,
     last_name: String,
-    dob: String,
+    date_of_birth: String,
     note_type: String,
     transcript: String,
     medical_note: String,
@@ -39,7 +39,7 @@ struct PatientNote {
 }
 
 #[derive(Serialize)]
-struct SaveNoteResult {
+struct NoteResult {
     success: bool,
     note_id: Option<String>,
     error: Option<String>,
@@ -330,12 +330,18 @@ async fn generate_medical_note(
         "llamafile"
     };
     
-    // Try different possible locations for the llamafile
+    // Get the current working directory to build absolute paths
+    let current_dir = std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+    let project_root = if current_dir.ends_with("src-tauri") {
+        current_dir.parent().unwrap_or(&current_dir).to_path_buf()
+    } else {
+        current_dir
+    };
+    
+    // Try different possible locations for the llamafile with absolute paths
     let llamafile_paths = [
-        // Development paths (relative to project root)
-        PathBuf::from("binaries").join(llamafile_name),
-        PathBuf::from("./binaries").join(llamafile_name),
-        PathBuf::from("../binaries").join(llamafile_name),
+        // Development paths (absolute from project root)
+        project_root.join("binaries").join(llamafile_name),
         // Production paths (in resources)
         resource_dir.join(llamafile_name),
         resource_dir.join("binaries").join(llamafile_name),
@@ -370,14 +376,6 @@ async fn generate_medical_note(
         "mistral-7b-instruct.gguf",
         "openchat-3.5.gguf"
     ];
-    
-    // Get the current working directory to build absolute paths
-    let current_dir = std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
-    let project_root = if current_dir.ends_with("src-tauri") {
-        current_dir.parent().unwrap_or(&current_dir).to_path_buf()
-    } else {
-        current_dir
-    };
     
     let model_paths = [
         // Absolute paths from project root
@@ -442,7 +440,7 @@ S: ",
     } else {
         format!(
             "<|begin_of_text|><|start_header_id|>user<|end_header_id|>
-You are an expert medical transcriptionist. Correct any medcal terminology errors that might have happened during transcription before generating the medical note. You convert medical transcript to a structured medical note with these sections in this order: 
+You are an expert medical transcriptionist. Correct any medical terminology errors that might have happened during transcription before generating the medical note. You convert medical transcript to a structured medical note with these sections in this order: 
 1. Presenting Illness
 (Bullet point statements of the main problem)
 2. History of Presenting Illness
@@ -506,6 +504,7 @@ Medical transcript:
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     
+    println!("Starting llamafile process...");
     let mut child = cmd.spawn()
         .map_err(|e| format!("Failed to execute llamafile: {}", e))?;
 
@@ -534,6 +533,8 @@ Medical transcript:
 
     // Wait for the process to complete
     let status = child.wait().map_err(|e| format!("Failed to wait for llamafile: {}", e))?;
+
+    println!("Llamafile process completed");
 
     if status.success() {
         // Clean the final output
@@ -696,16 +697,16 @@ fn clean_llm_output(output: &str) -> String {
 }
 
 #[tauri::command]
-async fn save_patient_note(
+async fn create_patient_note(
     app: tauri::AppHandle,
     first_name: String,
     last_name: String,
-    dob: String,
+    date_of_birth: String,
     note_type: String,
     transcript: String,
     medical_note: String,
-) -> Result<SaveNoteResult, String> {
-    println!("Saving patient note for {} {}", first_name, last_name);
+) -> Result<NoteResult, String> {
+    println!("Creating patient note for {} {}", first_name, last_name);
     
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let notes_dir = app_data_dir.join("notes");
@@ -725,7 +726,7 @@ async fn save_patient_note(
         id: note_id.clone(),
         first_name,
         last_name,
-        dob,
+        date_of_birth,
         note_type,
         transcript,
         medical_note,
@@ -740,9 +741,66 @@ async fn save_patient_note(
     fs::write(&note_file, json_content)
         .map_err(|e| format!("Failed to write note file: {}", e))?;
     
-    println!("Note saved successfully: {:?}", note_file);
+    println!("Note created successfully: {:?}", note_file);
     
-    Ok(SaveNoteResult {
+    Ok(NoteResult {
+        success: true,
+        note_id: Some(note_id),
+        error: None,
+    })
+}
+
+#[tauri::command]
+async fn update_patient_note(
+    app: tauri::AppHandle,
+    note_id: String,
+    first_name: String,
+    last_name: String,
+    date_of_birth: String,
+    note_type: String,
+    transcript: String,
+    medical_note: String,
+) -> Result<NoteResult, String> {
+    println!("Updating patient note {} for {} {}", note_id, first_name, last_name);
+    
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let notes_dir = app_data_dir.join("notes");
+    let note_file = notes_dir.join(format!("{}.json", note_id));
+    
+    // Check if the note file exists
+    if !note_file.exists() {
+        return Err(format!("Note not found: {}", note_id));
+    }
+    
+    // Load existing note to preserve creation date
+    let existing_content = fs::read_to_string(&note_file)
+        .map_err(|e| format!("Failed to read existing note: {}", e))?;
+    
+    let existing_note: PatientNote = serde_json::from_str(&existing_content)
+        .map_err(|e| format!("Failed to parse existing note: {}", e))?;
+    
+    // Create updated note with existing creation date
+    let updated_note = PatientNote {
+        id: note_id.clone(),
+        first_name,
+        last_name,
+        date_of_birth,
+        note_type,
+        transcript,
+        medical_note,
+        created_at: existing_note.created_at, // Preserve original creation date
+    };
+    
+    // Save updated note to JSON file
+    let json_content = serde_json::to_string_pretty(&updated_note)
+        .map_err(|e| format!("Failed to serialize updated note: {}", e))?;
+    
+    fs::write(&note_file, json_content)
+        .map_err(|e| format!("Failed to write updated note file: {}", e))?;
+    
+    println!("Note updated successfully: {:?}", note_file);
+    
+    Ok(NoteResult {
         success: true,
         note_id: Some(note_id),
         error: None,
@@ -751,8 +809,8 @@ async fn save_patient_note(
 
 #[tauri::command]
 async fn load_patient_notes(app: tauri::AppHandle) -> Result<LoadNotesResult, String> {
-    println!("Loading patient notes");
-    
+    println!("Loading patient notes...");
+
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let notes_dir = app_data_dir.join("notes");
     
@@ -835,8 +893,9 @@ fn main() {
             validate_audio_file,
             transcribe_audio,
             generate_medical_note,
-            save_patient_note,
+            create_patient_note,
             load_patient_notes,
+            update_patient_note,
             delete_patient_note
         ])
         .setup(|app| {
