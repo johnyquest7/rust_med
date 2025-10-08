@@ -34,44 +34,33 @@ async fn get_dek_from_auth_with_password(app: &tauri::AppHandle, password: &str)
 
 /// Convert PatientNote to EncryptedNote
 fn encrypt_note(note: &PatientNote, dek: &[u8]) -> Result<EncryptedNote, String> {
-    let (encrypted_transcript, transcript_nonce) = encrypt_data(&note.transcript, dek)
-        .map_err(|e| format!("Failed to encrypt transcript: {}", e))?;
+    // Serialize the note to JSON
+    let json_data = serde_json::to_string(note)
+        .map_err(|e| format!("Failed to serialize note: {}", e))?;
     
-    let (encrypted_medical_note, medical_note_nonce) = encrypt_data(&note.medical_note, dek)
-        .map_err(|e| format!("Failed to encrypt medical note: {}", e))?;
+    // Encrypt the entire JSON blob
+    let (encrypted_data, nonce) = encrypt_data(&json_data, dek)
+        .map_err(|e| format!("Failed to encrypt note data: {}", e))?;
     
     Ok(EncryptedNote {
         id: note.id.clone(),
-        first_name: note.first_name.clone(),
-        last_name: note.last_name.clone(),
-        date_of_birth: note.date_of_birth.clone(),
-        note_type: note.note_type.clone(),
-        encrypted_transcript,
-        encrypted_medical_note,
-        transcript_nonce,
-        medical_note_nonce,
+        encrypted_data,
+        nonce,
         created_at: note.created_at,
     })
 }
 
 /// Convert EncryptedNote to PatientNote
 fn decrypt_note(encrypted_note: &EncryptedNote, dek: &[u8]) -> Result<PatientNote, String> {
-    let transcript = decrypt_data(&encrypted_note.encrypted_transcript, dek, &encrypted_note.transcript_nonce)
-        .map_err(|e| format!("Failed to decrypt transcript: {}", e))?;
+    // Decrypt the entire JSON blob
+    let json_data = decrypt_data(&encrypted_note.encrypted_data, dek, &encrypted_note.nonce)
+        .map_err(|e| format!("Failed to decrypt note data: {}", e))?;
     
-    let medical_note = decrypt_data(&encrypted_note.encrypted_medical_note, dek, &encrypted_note.medical_note_nonce)
-        .map_err(|e| format!("Failed to decrypt medical note: {}", e))?;
+    // Deserialize the JSON back to PatientNote
+    let note: PatientNote = serde_json::from_str(&json_data)
+        .map_err(|e| format!("Failed to deserialize note: {}", e))?;
     
-    Ok(PatientNote {
-        id: encrypted_note.id.clone(),
-        first_name: encrypted_note.first_name.clone(),
-        last_name: encrypted_note.last_name.clone(),
-        date_of_birth: encrypted_note.date_of_birth.clone(),
-        note_type: encrypted_note.note_type.clone(),
-        transcript,
-        medical_note,
-        created_at: encrypted_note.created_at,
-    })
+    Ok(note)
 }
 
 #[derive(Serialize)]
@@ -103,14 +92,8 @@ struct PatientNote {
 #[derive(Serialize, Deserialize)]
 struct EncryptedNote {
     id: String,
-    first_name: String,
-    last_name: String,
-    date_of_birth: String,
-    note_type: String,
-    encrypted_transcript: String,
-    encrypted_medical_note: String,
-    transcript_nonce: String,
-    medical_note_nonce: String,
+    encrypted_data: String,
+    nonce: String,
     created_at: DateTime<Local>,
 }
 
