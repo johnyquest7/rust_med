@@ -272,7 +272,7 @@
       <Button
         variant="destructive"
         onclick={() => confirmDelete(selectedNote!)}
-        class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+        class="flex items-center gap-2"
       >
         <Trash2 class="h-4 w-4" />
         Delete Note
