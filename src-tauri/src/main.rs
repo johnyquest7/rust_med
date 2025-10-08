@@ -12,6 +12,10 @@ use chrono::{DateTime, Local};
 use std::io::{BufRead, BufReader};
 use std::process::Stdio;
 
+mod auth;
+
+use auth::*;
+
 #[derive(Serialize)]
 struct TranscriptionResult {
     success: bool,
@@ -884,6 +888,158 @@ async fn delete_patient_note(app: tauri::AppHandle, note_id: String) -> Result<b
     }
 }
 
+// Authentication Tauri Commands
+
+#[tauri::command]
+async fn check_auth_status(app: tauri::AppHandle) -> Result<AuthResponse, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let auth_path = app_data_dir.join("auth.json");
+    
+    if !check_auth_file_exists(&auth_path) {
+        return Ok(AuthResponse {
+            success: false,
+            message: "No authentication file found".to_string(),
+            user: None,
+        });
+    }
+    
+    match load_auth_file(&auth_path) {
+        Ok(auth_file) => Ok(AuthResponse {
+            success: true,
+            message: "Authentication file exists".to_string(),
+            user: Some(UserInfo {
+                user_id: auth_file.user_id,
+                username: auth_file.user.username,
+            }),
+        }),
+        Err(e) => Ok(AuthResponse {
+            success: false,
+            message: format!("Failed to load auth file: {}", e),
+            user: None,
+        }),
+    }
+}
+
+#[tauri::command]
+async fn create_user_account_command(
+    app: tauri::AppHandle,
+    request: CreateUserRequest,
+) -> Result<AuthResponse, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let auth_path = app_data_dir.join("auth.json");
+    
+    // Check if auth file already exists
+    if check_auth_file_exists(&auth_path) {
+        return Ok(AuthResponse {
+            success: false,
+            message: "User account already exists".to_string(),
+            user: None,
+        });
+    }
+    
+    match create_user_account(request.username.clone(), request.password) {
+        Ok(auth_file) => {
+            match save_auth_file(&auth_path, &auth_file) {
+                Ok(_) => Ok(AuthResponse {
+                    success: true,
+                    message: "User account created successfully".to_string(),
+                    user: Some(UserInfo {
+                        user_id: auth_file.user_id,
+                        username: auth_file.user.username,
+                    }),
+                }),
+                Err(e) => Ok(AuthResponse {
+                    success: false,
+                    message: format!("Failed to save auth file: {}", e),
+                    user: None,
+                }),
+            }
+        }
+        Err(e) => Ok(AuthResponse {
+            success: false,
+            message: format!("Failed to create user account: {}", e),
+            user: None,
+        }),
+    }
+}
+
+#[tauri::command]
+async fn authenticate_user_command(
+    app: tauri::AppHandle,
+    request: AuthenticateRequest,
+) -> Result<AuthResponse, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let auth_path = app_data_dir.join("auth.json");
+    
+    if !check_auth_file_exists(&auth_path) {
+        return Ok(AuthResponse {
+            success: false,
+            message: "No authentication file found".to_string(),
+            user: None,
+        });
+    }
+    
+    match load_auth_file(&auth_path) {
+        Ok(auth_file) => {
+            match authenticate_user(&auth_file, &request.password) {
+                Ok(true) => Ok(AuthResponse {
+                    success: true,
+                    message: "Authentication successful".to_string(),
+                    user: Some(UserInfo {
+                        user_id: auth_file.user_id,
+                        username: auth_file.user.username,
+                    }),
+                }),
+                Ok(false) => Ok(AuthResponse {
+                    success: false,
+                    message: "Invalid password".to_string(),
+                    user: None,
+                }),
+                Err(e) => Ok(AuthResponse {
+                    success: false,
+                    message: format!("Authentication error: {}", e),
+                    user: None,
+                }),
+            }
+        }
+        Err(e) => Ok(AuthResponse {
+            success: false,
+            message: format!("Failed to load auth file: {}", e),
+            user: None,
+        }),
+    }
+}
+
+#[tauri::command]
+async fn get_user_info_command(app: tauri::AppHandle) -> Result<AuthResponse, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let auth_path = app_data_dir.join("auth.json");
+    
+    if !check_auth_file_exists(&auth_path) {
+        return Ok(AuthResponse {
+            success: false,
+            message: "No authentication file found".to_string(),
+            user: None,
+        });
+    }
+    
+    match load_auth_file(&auth_path) {
+        Ok(auth_file) => Ok(AuthResponse {
+            success: true,
+            message: "User info retrieved".to_string(),
+            user: Some(UserInfo {
+                user_id: auth_file.user_id,
+                username: auth_file.user.username,
+            }),
+        }),
+        Err(e) => Ok(AuthResponse {
+            success: false,
+            message: format!("Failed to load auth file: {}", e),
+            user: None,
+        }),
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -896,7 +1052,11 @@ fn main() {
             create_patient_note,
             load_patient_notes,
             update_patient_note,
-            delete_patient_note
+            delete_patient_note,
+            check_auth_status,
+            create_user_account_command,
+            authenticate_user_command,
+            get_user_info_command
         ])
         .setup(|app| {
             let resource_dir = app.path().resource_dir().expect("failed to get resource directory");

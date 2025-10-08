@@ -3,23 +3,13 @@
  */
 
 /**
- * User information interface
+ * User information interface (simplified for authentication)
  */
 export interface User {
   /** Unique user identifier */
-  id: string;
+  user_id: string;
   /** Username for login */
   username: string;
-  /** User's full name */
-  name: string;
-  /** User's email address */
-  email: string;
-  /** User's medical specialty */
-  specialty: string;
-  /** When the user was created */
-  createdAt: Date;
-  /** When the user was last updated */
-  updatedAt: Date;
 }
 
 /**
@@ -47,19 +37,43 @@ export interface LoginCredentials {
 }
 
 /**
- * User registration data interface
+ * User registration data interface (simplified)
  */
 export interface RegisterData {
   /** Username for login */
   username: string;
   /** Password for login */
   password: string;
-  /** User's full name */
-  name: string;
-  /** User's email address */
-  email: string;
-  /** User's medical specialty */
-  specialty: string;
+}
+
+/**
+ * Authentication response from backend
+ */
+export interface AuthResponse {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** Response message */
+  message: string;
+  /** User information if successful */
+  user: User | null;
+}
+
+/**
+ * Create user account request
+ */
+export interface CreateUserRequest {
+  /** Username for login */
+  username: string;
+  /** Password for login */
+  password: string;
+}
+
+/**
+ * Authenticate user request
+ */
+export interface AuthenticateRequest {
+  /** Password for login */
+  password: string;
 }
 
 /**
@@ -68,16 +82,20 @@ export interface RegisterData {
 export interface AuthContext {
   /** Current authentication state */
   state: AuthState;
-  /** Login with username and password */
-  login: (credentials: LoginCredentials) => Promise<void>;
+  /** Login with password (username shown from auth file) */
+  login: (password: string) => Promise<void>;
+  /** Register new user account */
+  register: (data: RegisterData) => Promise<void>;
   /** Logout the current user */
   logout: () => void;
   /** Clear any authentication errors */
   clearError: () => void;
-  /** Check if user has specific specialty */
-  hasSpecialty: (specialty: string) => boolean;
   /** Check if user is authenticated */
   isAuthenticated: () => boolean;
+  /** Check authentication status on app startup */
+  checkAuthStatus: () => Promise<void>;
+  /** Initialize authentication state from localStorage */
+  initialize: () => void;
 }
 
 export interface TauriNoteIn {

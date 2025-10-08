@@ -1,4 +1,13 @@
-import type { User, AuthState, LoginCredentials, AuthContext } from '$lib/types.js';
+import type { User, AuthState, RegisterData, AuthContext, AuthResponse, CreateUserRequest, AuthenticateRequest } from '$lib/types.js';
+import { browser } from '$app/environment';
+
+declare global {
+  interface Window {
+    __TAURI__: {
+      core: { invoke: (command: string, args?: any) => Promise<any> };
+    };
+  }
+}
 
 /**
  * Authentication context using Svelte 5 runes
@@ -19,35 +28,66 @@ class AuthContextClass implements AuthContext {
   });
 
   /**
-   * Login with username and password
-   * @param credentials - Login credentials
+   * Helper function to invoke Tauri commands
    */
-  async login(credentials: LoginCredentials): Promise<void> {
+  private async invoke(command: string, args?: any): Promise<any> {
+    if (!browser || typeof window.__TAURI__ === 'undefined') {
+      throw new Error('Tauri APIs not available');
+    }
+    return window.__TAURI__.core.invoke(command, args);
+  }
+
+  /**
+   * Login with password (username is retrieved from auth file)
+   * @param password - User password
+   */
+  async login(password: string): Promise<void> {
     this.#isLoading = true;
     this.#error = null;
 
     try {
-      // TODO: Replace with actual authentication logic
-      // For now, we'll simulate a login process
-      await this.#simulateLogin(credentials);
+      const request: AuthenticateRequest = { password };
+      const response: AuthResponse = await this.invoke('authenticate_user_command', { request });
 
-      // Create a mock user for now
-      const user: User = {
-        id: '1',
-        username: credentials.username,
-        name: 'Dr. ' + credentials.username.charAt(0).toUpperCase() + credentials.username.slice(1),
-        email: `${credentials.username}@medicalnotes.com`,
-        specialty: 'General Practitioner',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      this.#user = user;
-
-      // Store in localStorage for persistence
-      localStorage.setItem('auth_user', JSON.stringify(user));
+      if (response.success && response.user) {
+        this.#user = response.user;
+        // Store in localStorage for persistence
+        localStorage.setItem('auth_user', JSON.stringify(response.user));
+      } else {
+        throw new Error(response.message);
+      }
     } catch (error) {
       this.#error = error instanceof Error ? error.message : 'Login failed';
+      throw error;
+    } finally {
+      this.#isLoading = false;
+    }
+  }
+
+  /**
+   * Register new user account
+   * @param data - Registration data
+   */
+  async register(data: RegisterData): Promise<void> {
+    this.#isLoading = true;
+    this.#error = null;
+
+    try {
+      const request: CreateUserRequest = {
+        username: data.username,
+        password: data.password
+      };
+      const response: AuthResponse = await this.invoke('create_user_account_command', { request });
+
+      if (response.success && response.user) {
+        this.#user = response.user;
+        // Store in localStorage for persistence
+        localStorage.setItem('auth_user', JSON.stringify(response.user));
+      } else {
+        throw new Error(response.message);
+      }
+    } catch (error) {
+      this.#error = error instanceof Error ? error.message : 'Registration failed';
       throw error;
     } finally {
       this.#isLoading = false;
@@ -71,20 +111,39 @@ class AuthContextClass implements AuthContext {
   }
 
   /**
-   * Check if user has specific specialty
-   * @param specialty - Specialty to check
-   * @returns True if user has the specialty
-   */
-  hasSpecialty(specialty: string): boolean {
-    return this.#user?.specialty === specialty;
-  }
-
-  /**
    * Check if user is authenticated
    * @returns True if user is authenticated
    */
   isAuthenticated(): boolean {
     return this.#user !== null;
+  }
+
+  /**
+   * Check authentication status on app startup
+   */
+  async checkAuthStatus(): Promise<void> {
+    this.#isLoading = true;
+    this.#error = null;
+
+    try {
+      const response: AuthResponse = await this.invoke('check_auth_status');
+      
+      if (response.success && response.user) {
+        this.#user = response.user;
+        // Store in localStorage for persistence
+        localStorage.setItem('auth_user', JSON.stringify(response.user));
+      } else {
+        // No auth file exists or user not authenticated
+        this.#user = null;
+        localStorage.removeItem('auth_user');
+      }
+    } catch (error) {
+      console.error('Failed to check auth status:', error);
+      this.#user = null;
+      localStorage.removeItem('auth_user');
+    } finally {
+      this.#isLoading = false;
+    }
   }
 
   /**
@@ -96,36 +155,12 @@ class AuthContextClass implements AuthContext {
       const storedUser = localStorage.getItem('auth_user');
       if (storedUser) {
         const user = JSON.parse(storedUser) as User;
-        // Convert date strings back to Date objects
-        user.createdAt = new Date(user.createdAt);
-        user.updatedAt = new Date(user.updatedAt);
         this.#user = user;
       }
     } catch (error) {
       console.error('Failed to initialize auth state:', error);
       // Clear invalid stored data
       localStorage.removeItem('auth_user');
-    }
-  }
-
-  /**
-   * Simulate login process
-   * @param credentials - Login credentials
-   * @private
-   */
-  async #simulateLogin(credentials: LoginCredentials): Promise<void> {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // For now, accept any username/password combination
-    // TODO: Replace with actual authentication logic
-    if (!credentials.username || !credentials.password) {
-      throw new Error('Username and password are required');
-    }
-
-    // Simulate some validation
-    if (credentials.username.length < 3) {
-      throw new Error('Username must be at least 3 characters long');
     }
   }
 }
