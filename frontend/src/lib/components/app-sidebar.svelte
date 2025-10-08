@@ -30,10 +30,6 @@
   function isActive(url: string): boolean {
     return page.url.pathname === url;
   }
-
-  // Get user display information - using $derived for proper Svelte 5 reactivity
-  let userDisplayName = $derived(auth?.state.user?.name || 'Not logged in');
-  let userSpecialty = $derived(auth?.state.user?.specialty || 'Guest');
 </script>
 
 <Sidebar.Root collapsible="icon">
@@ -112,8 +108,9 @@
                 <User class="size-4" />
               </div>
               <div class="grid flex-1 text-left text-sm leading-tight">
-                <span class="truncate font-semibold">{userDisplayName}</span>
-                <span class="truncate text-xs">{userSpecialty}</span>
+                {#if auth.state.user}
+                  <span class="truncate font-semibold">{auth.state.user.username}</span>
+                {/if}
               </div>
             </a>
           {/snippet}

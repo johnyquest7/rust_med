@@ -64,3 +64,4 @@ The Tauri app uses whatever is in the `frontend/build` directory, so while you c
 
 - Add auth method that's better to set up for encryption
 - Later: Move to sqlite with encryption
+- cd "/Users/alexledger/Library/Application Support/com.medical.notegenerator/"

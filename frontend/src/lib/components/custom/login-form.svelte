@@ -136,11 +136,5 @@
         {/if}
       </Button>
     </form>
-
-    <div class="mt-4 rounded-md bg-blue-50 p-3">
-      <p class="text-sm text-blue-800">
-        <strong>Security:</strong> Your password is verified using secure cryptographic methods.
-      </p>
-    </div>
   </CardContent>
 </Card>

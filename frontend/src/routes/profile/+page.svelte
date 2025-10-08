@@ -26,27 +26,9 @@
         <p class="mt-4 text-lg text-muted-foreground">Try the login system with any username and password</p>
       </div>
 
-      <div class="grid gap-8 md:grid-cols-2">
-        <!-- Login Form -->
-        <div class="flex justify-center">
-          {#if !isAuthenticated}
-            <LoginForm />
-          {:else}
-            <div class="w-full max-w-md">
-              <div class="rounded-lg border bg-card p-6 text-center">
-                <h3 class="mb-2 text-lg font-semibold text-green-600">✓ Successfully Logged In!</h3>
-                <p class="text-sm text-muted-foreground">
-                  You are now authenticated. Check the status panel to see your user information.
-                </p>
-              </div>
-            </div>
-          {/if}
-        </div>
-
-        <!-- Auth Status -->
-        <div class="flex justify-center">
-          <AuthStatus />
-        </div>
+      <!-- Auth Status -->
+      <div class="flex justify-center">
+        <AuthStatus />
       </div>
     </div>
   </div>

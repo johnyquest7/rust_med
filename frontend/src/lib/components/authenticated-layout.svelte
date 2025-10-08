@@ -9,10 +9,10 @@
   import type { AuthResponse } from '$lib/types.js';
 
   let { children } = $props();
-  
+
   // Get authentication context
   const auth = useAuth();
-  
+
   // State for determining which form to show
   let showRegistration = $state(false);
   let authFileExists = $state(false);
@@ -27,7 +27,7 @@
       }
       const response: AuthResponse = await (window as any).__TAURI__.core.invoke('check_auth_status');
       authFileExists = response.success;
-      
+
       if (authFileExists && response.user) {
         // Set user directly from the response
         localStorage.setItem('auth_user', JSON.stringify(response.user));
@@ -87,25 +87,9 @@
       {#if authFileExists}
         <!-- Show login form if auth file exists -->
         <LoginForm />
-        <div class="mt-4 text-center">
-          <button
-            onclick={switchToRegistration}
-            class="text-sm text-blue-600 hover:text-blue-800 underline"
-          >
-            Create a new account instead
-          </button>
-        </div>
       {:else}
         <!-- Show registration form if no auth file exists -->
         <RegisterForm />
-        <div class="mt-4 text-center">
-          <button
-            onclick={switchToLogin}
-            class="text-sm text-blue-600 hover:text-blue-800 underline"
-          >
-            Already have an account? Login
-          </button>
-        </div>
       {/if}
     </div>
   </div>
