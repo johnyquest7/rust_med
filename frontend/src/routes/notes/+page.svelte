@@ -18,10 +18,25 @@
   let noteToDelete = $state<TauriNote | null>(null);
 
   async function loadNotes() {
-    const result = await tauriService.loadNotes();
-    if (result.success) {
-      notes = result.notes;
-    }
+    // const result = await tauriService.loadNotes();
+    // if (result.success) {
+    //   notes = result.notes;
+    // }
+
+    notes = [
+      {
+        id: 'placeholder-1',
+        firstName: 'Maria',
+        lastName: 'Rodriguez',
+        dateOfBirth: '1985-03-15',
+        noteType: 'soap',
+        transcript:
+          'Patient presents with chest pain that started this morning. Pain is described as sharp, 7/10 intensity, located in the center of chest. Pain radiates to left arm. Patient reports shortness of breath and mild nausea. No fever or cough. Pain worsens with deep breathing.',
+        medicalNote:
+          'SUBJECTIVE: 45-year-old female presents with acute onset chest pain.\n\nOBJECTIVE: Vital signs stable. Heart rate 88 bpm, BP 128/82, RR 18, O2 sat 98% on room air. No acute distress. Heart sounds regular, no murmurs. Lungs clear bilaterally.\n\nASSESSMENT: Chest pain, likely musculoskeletal vs cardiac etiology. Given patient demographics and presentation, cardiac workup recommended.\n\nPLAN: 1) EKG to rule out acute coronary syndrome 2) Chest X-ray 3) Troponin levels 4) Cardiology consultation if indicated 5) Pain management with acetaminophen 6) Follow up in 24-48 hours',
+        createdAt: '2024-01-15T10:30:00Z'
+      }
+    ];
   }
 
   function confirmDelete(note: TauriNote) {
@@ -74,7 +89,7 @@
 
 <div class="container mx-auto max-w-6xl space-y-6 px-4 py-8">
   <h2 class="text-2xl font-bold">Medical Notes</h2>
-  
+
   {#if notes.length === 0}
     <Card>
       <CardContent class="flex flex-col items-center justify-center py-12">
@@ -126,6 +141,7 @@
                           e.stopPropagation();
                           confirmDelete(note);
                         }}
+                        class="text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                       >
                         <Trash2 class="h-4 w-4" />
                       </Button>
@@ -140,29 +156,30 @@
     </div>
 
     <!-- Mobile Card View (visible on mobile) -->
-    <div class="block md:hidden space-y-4">
+    <div class="block space-y-4 md:hidden">
       {#each notes as note (note.id)}
-        <div 
-          class="cursor-pointer" 
+        <div
+          class="cursor-pointer"
           role="button"
           tabindex="0"
           onclick={() => openNoteDetail(note)}
           onkeydown={(e) => e.key === 'Enter' && openNoteDetail(note)}
         >
-          <Card class="hover:shadow-md transition-shadow">
+          <Card class="transition-shadow hover:shadow-md">
             <CardHeader class="pb-3">
               <div class="flex items-start justify-between">
-                <div class="flex-1 min-w-0">
-                  <CardTitle class="text-lg font-semibold truncate">
-                    {note.firstName} {note.lastName}
+                <div class="min-w-0 flex-1">
+                  <CardTitle class="truncate text-lg font-semibold">
+                    {note.firstName}
+                    {note.lastName}
                   </CardTitle>
-                  <div class="flex items-center gap-2 mt-1">
+                  <div class="mt-1 flex items-center gap-2">
                     <Badge variant="secondary" class="text-xs">
                       {note.noteType === 'soap' ? 'SOAP Note' : 'Full Note'}
                     </Badge>
                   </div>
                 </div>
-                <div class="flex items-center gap-1 ml-2">
+                <div class="ml-2 flex items-center gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -181,7 +198,7 @@
                       e.stopPropagation();
                       confirmDelete(note);
                     }}
-                    class="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                    class="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                   >
                     <Trash2 class="h-4 w-4" />
                   </Button>
@@ -209,13 +226,13 @@
 
 <!-- Note Detail Dialog -->
 <Dialog.Root bind:open={isDialogOpen}>
-  <Dialog.Content class="w-[95vw] max-w-[540px] max-h-[90vh] overflow-hidden flex flex-col">
+  <Dialog.Content class="flex max-h-[90vh] w-[95vw] max-w-[540px] flex-col overflow-hidden">
     <Dialog.Header>
       <Dialog.Title>{selectedNote?.firstName} {selectedNote?.lastName}</Dialog.Title>
     </Dialog.Header>
-    
+
     {#if selectedNote}
-      <div class="space-y-6 py-6 overflow-y-auto flex-1">
+      <div class="flex-1 space-y-6 overflow-y-auto py-6">
         <!-- Patient Information -->
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">Patient Information</h3>
@@ -235,7 +252,9 @@
             <div>
               <div class="text-sm font-medium text-muted-foreground">Note Type</div>
               <p class="text-sm">
-                <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                <span
+                  class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800"
+                >
                   {selectedNote.noteType === 'soap' ? 'SOAP Note' : 'Full Note'}
                 </span>
               </p>
@@ -250,30 +269,22 @@
         <!-- Transcript -->
         <div class="space-y-2">
           <h3 class="text-lg font-semibold">Transcript</h3>
-          <Textarea 
-            readonly 
-            value={selectedNote.transcript} 
-            class="min-h-[100px] resize-none"
-          />
+          <Textarea readonly value={selectedNote.transcript} class="min-h-[100px] resize-none" />
         </div>
 
         <!-- Medical Note -->
         <div class="space-y-2">
           <h3 class="text-lg font-semibold">Medical Note</h3>
-          <Textarea 
-            readonly 
-            value={selectedNote.medicalNote} 
-            class="min-h-[200px] resize-none"
-          />
+          <Textarea readonly value={selectedNote.medicalNote} class="min-h-[200px] resize-none" />
         </div>
       </div>
     {/if}
 
     <Dialog.Footer class="flex justify-between">
-      <Button 
-        variant="destructive" 
+      <Button
+        variant="destructive"
         onclick={() => confirmDelete(selectedNote!)}
-        class="flex items-center gap-2"
+        class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
       >
         <Trash2 class="h-4 w-4" />
         Delete Note
@@ -287,18 +298,23 @@
 <AlertDialog.Root bind:open={isDeleteDialogOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>Delete Medical Note</AlertDialog.Title>
+      <AlertDialog.Title>Eliminar Nota Médica</AlertDialog.Title>
       <AlertDialog.Description>
-        Are you sure you want to delete the medical note for {noteToDelete?.firstName} {noteToDelete?.lastName}? 
-        This action cannot be undone.
+        ¿Está seguro de que desea eliminar la nota médica de {noteToDelete?.firstName}
+        {noteToDelete?.lastName}? Esta acción no se puede deshacer.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel onclick={() => { isDeleteDialogOpen = false; noteToDelete = null; }}>
-        Cancel
+      <AlertDialog.Cancel
+        onclick={() => {
+          isDeleteDialogOpen = false;
+          noteToDelete = null;
+        }}
+      >
+        Cancelar
       </AlertDialog.Cancel>
       <AlertDialog.Action onclick={deleteNote} class="bg-destructive text-white hover:bg-destructive/90">
-        Delete
+        Eliminar
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
