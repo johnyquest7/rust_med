@@ -232,10 +232,9 @@
     </Dialog.Header>
 
     {#if selectedNote}
-      <div class="flex-1 space-y-6 overflow-y-auto py-6">
+      <div class="flex-1 space-y-6 overflow-y-auto py-4">
         <!-- Patient Information -->
         <div class="space-y-4">
-          <h3 class="text-lg font-semibold">Patient Information</h3>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <div class="text-sm font-medium text-muted-foreground">First Name</div>
@@ -269,13 +268,17 @@
         <!-- Transcript -->
         <div class="space-y-2">
           <h3 class="text-lg font-semibold">Transcript</h3>
-          <Textarea readonly value={selectedNote.transcript} class="min-h-[100px] resize-none" />
+          <div class="px-0.5">
+            <Textarea readonly value={selectedNote.transcript} class="min-h-[100px] resize-none" />
+          </div>
         </div>
 
         <!-- Medical Note -->
         <div class="space-y-2">
           <h3 class="text-lg font-semibold">Medical Note</h3>
-          <Textarea readonly value={selectedNote.medicalNote} class="min-h-[200px] resize-none" />
+          <div class="px-0.5">
+            <Textarea readonly value={selectedNote.medicalNote} class="min-h-[200px] resize-none" />
+          </div>
         </div>
       </div>
     {/if}
