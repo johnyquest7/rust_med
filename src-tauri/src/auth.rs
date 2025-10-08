@@ -66,6 +66,7 @@ pub enum AuthError {
     Serialization(String),
     
     #[error("Authentication failed: {0}")]
+    #[allow(dead_code)]
     Authentication(String),
     
     #[error("Cryptographic error: {0}")]
@@ -124,6 +125,7 @@ pub fn generate_user_id() -> String {
 }
 
 /// Get the auth file path in the app data directory
+#[allow(dead_code)]
 pub fn get_auth_file_path() -> PathBuf {
     // This will be implemented to use Tauri's app data directory
     // For now, we'll use a placeholder that will be updated when we integrate with Tauri
@@ -230,6 +232,7 @@ pub fn decrypt_dek(ciphertext: &str, key: &[u8], nonce: &str) -> AuthResult<Vec<
 }
 
 /// Verify password against stored hash
+#[allow(dead_code)]
 pub fn verify_password(password: &str, stored_hash: &str) -> AuthResult<bool> {
     let parsed_hash = PasswordHash::new(stored_hash)
         .map_err(|e| AuthError::Cryptographic(format!("Invalid stored hash: {}", e)))?;
