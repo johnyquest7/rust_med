@@ -286,10 +286,10 @@
 <AlertDialog.Root bind:open={isDeleteDialogOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>Eliminar Nota Médica</AlertDialog.Title>
+      <AlertDialog.Title>Delete Medical Note</AlertDialog.Title>
       <AlertDialog.Description>
-        ¿Está seguro de que desea eliminar la nota médica de {noteToDelete?.firstName}
-        {noteToDelete?.lastName}? Esta acción no se puede deshacer.
+        Are you sure you want to delete the medical note for {noteToDelete?.firstName}
+        {noteToDelete?.lastName}? This action cannot be undone.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
@@ -299,10 +299,10 @@
           noteToDelete = null;
         }}
       >
-        Cancelar
+        Cancel
       </AlertDialog.Cancel>
       <AlertDialog.Action onclick={deleteNote} class="bg-destructive text-white hover:bg-destructive/90">
-        Eliminar
+        Delete
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
