@@ -210,3 +210,7 @@ The authentication system has been successfully implemented with the following k
 - **Dependencies**: 6 new Rust crates for cryptographic operations
 
 The implementation is production-ready and follows security best practices for local authentication systems.
+
+---
+
+Update the JSON notes that are stored on disk to be encrypted using the DEK and decrypted when read using the DEK.

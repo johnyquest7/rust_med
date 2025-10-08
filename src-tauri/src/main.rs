@@ -16,6 +16,64 @@ mod auth;
 
 use auth::*;
 
+/// Helper function to get the DEK from the auth file with password
+async fn get_dek_from_auth_with_password(app: &tauri::AppHandle, password: &str) -> Result<Vec<u8>, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let auth_path = app_data_dir.join("auth.json");
+    
+    if !check_auth_file_exists(&auth_path) {
+        return Err("No authentication file found".to_string());
+    }
+    
+    let auth_file = load_auth_file(&auth_path)
+        .map_err(|e| format!("Failed to load auth file: {}", e))?;
+    
+    get_dek(&auth_file, password)
+        .map_err(|e| format!("Failed to decrypt DEK: {}", e))
+}
+
+/// Convert PatientNote to EncryptedNote
+fn encrypt_note(note: &PatientNote, dek: &[u8]) -> Result<EncryptedNote, String> {
+    let (encrypted_transcript, transcript_nonce) = encrypt_data(&note.transcript, dek)
+        .map_err(|e| format!("Failed to encrypt transcript: {}", e))?;
+    
+    let (encrypted_medical_note, medical_note_nonce) = encrypt_data(&note.medical_note, dek)
+        .map_err(|e| format!("Failed to encrypt medical note: {}", e))?;
+    
+    Ok(EncryptedNote {
+        id: note.id.clone(),
+        first_name: note.first_name.clone(),
+        last_name: note.last_name.clone(),
+        date_of_birth: note.date_of_birth.clone(),
+        note_type: note.note_type.clone(),
+        encrypted_transcript,
+        encrypted_medical_note,
+        transcript_nonce,
+        medical_note_nonce,
+        created_at: note.created_at,
+    })
+}
+
+/// Convert EncryptedNote to PatientNote
+fn decrypt_note(encrypted_note: &EncryptedNote, dek: &[u8]) -> Result<PatientNote, String> {
+    let transcript = decrypt_data(&encrypted_note.encrypted_transcript, dek, &encrypted_note.transcript_nonce)
+        .map_err(|e| format!("Failed to decrypt transcript: {}", e))?;
+    
+    let medical_note = decrypt_data(&encrypted_note.encrypted_medical_note, dek, &encrypted_note.medical_note_nonce)
+        .map_err(|e| format!("Failed to decrypt medical note: {}", e))?;
+    
+    Ok(PatientNote {
+        id: encrypted_note.id.clone(),
+        first_name: encrypted_note.first_name.clone(),
+        last_name: encrypted_note.last_name.clone(),
+        date_of_birth: encrypted_note.date_of_birth.clone(),
+        note_type: encrypted_note.note_type.clone(),
+        transcript,
+        medical_note,
+        created_at: encrypted_note.created_at,
+    })
+}
+
 #[derive(Serialize)]
 struct TranscriptionResult {
     success: bool,
@@ -39,6 +97,20 @@ struct PatientNote {
     note_type: String,
     transcript: String,
     medical_note: String,
+    created_at: DateTime<Local>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct EncryptedNote {
+    id: String,
+    first_name: String,
+    last_name: String,
+    date_of_birth: String,
+    note_type: String,
+    encrypted_transcript: String,
+    encrypted_medical_note: String,
+    transcript_nonce: String,
+    medical_note_nonce: String,
     created_at: DateTime<Local>,
 }
 
@@ -703,6 +775,7 @@ fn clean_llm_output(output: &str) -> String {
 #[tauri::command]
 async fn create_patient_note(
     app: tauri::AppHandle,
+    password: String,
     first_name: String,
     last_name: String,
     date_of_birth: String,
@@ -711,6 +784,9 @@ async fn create_patient_note(
     medical_note: String,
 ) -> Result<NoteResult, String> {
     println!("Creating patient note for {} {}", first_name, last_name);
+    
+    // Get the DEK using the password
+    let dek = get_dek_from_auth_with_password(&app, &password).await?;
     
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let notes_dir = app_data_dir.join("notes");
@@ -737,15 +813,18 @@ async fn create_patient_note(
         created_at,
     };
     
-    // Save note to JSON file
+    // Encrypt the note
+    let encrypted_note = encrypt_note(&patient_note, &dek)?;
+    
+    // Save encrypted note to JSON file
     let note_file = notes_dir.join(format!("{}.json", note_id));
-    let json_content = serde_json::to_string_pretty(&patient_note)
-        .map_err(|e| format!("Failed to serialize note: {}", e))?;
+    let json_content = serde_json::to_string_pretty(&encrypted_note)
+        .map_err(|e| format!("Failed to serialize encrypted note: {}", e))?;
     
     fs::write(&note_file, json_content)
         .map_err(|e| format!("Failed to write note file: {}", e))?;
     
-    println!("Note created successfully: {:?}", note_file);
+    println!("Encrypted note created successfully: {:?}", note_file);
     
     Ok(NoteResult {
         success: true,
@@ -757,6 +836,7 @@ async fn create_patient_note(
 #[tauri::command]
 async fn update_patient_note(
     app: tauri::AppHandle,
+    password: String,
     note_id: String,
     first_name: String,
     last_name: String,
@@ -767,6 +847,9 @@ async fn update_patient_note(
 ) -> Result<NoteResult, String> {
     println!("Updating patient note {} for {} {}", note_id, first_name, last_name);
     
+    // Get the DEK using the password
+    let dek = get_dek_from_auth_with_password(&app, &password).await?;
+    
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let notes_dir = app_data_dir.join("notes");
     let note_file = notes_dir.join(format!("{}.json", note_id));
@@ -776,12 +859,12 @@ async fn update_patient_note(
         return Err(format!("Note not found: {}", note_id));
     }
     
-    // Load existing note to preserve creation date
+    // Load existing encrypted note to preserve creation date
     let existing_content = fs::read_to_string(&note_file)
         .map_err(|e| format!("Failed to read existing note: {}", e))?;
     
-    let existing_note: PatientNote = serde_json::from_str(&existing_content)
-        .map_err(|e| format!("Failed to parse existing note: {}", e))?;
+    let existing_encrypted_note: EncryptedNote = serde_json::from_str(&existing_content)
+        .map_err(|e| format!("Failed to parse existing encrypted note: {}", e))?;
     
     // Create updated note with existing creation date
     let updated_note = PatientNote {
@@ -792,17 +875,20 @@ async fn update_patient_note(
         note_type,
         transcript,
         medical_note,
-        created_at: existing_note.created_at, // Preserve original creation date
+        created_at: existing_encrypted_note.created_at, // Preserve original creation date
     };
     
-    // Save updated note to JSON file
-    let json_content = serde_json::to_string_pretty(&updated_note)
-        .map_err(|e| format!("Failed to serialize updated note: {}", e))?;
+    // Encrypt the updated note
+    let encrypted_updated_note = encrypt_note(&updated_note, &dek)?;
+    
+    // Save updated encrypted note to JSON file
+    let json_content = serde_json::to_string_pretty(&encrypted_updated_note)
+        .map_err(|e| format!("Failed to serialize updated encrypted note: {}", e))?;
     
     fs::write(&note_file, json_content)
         .map_err(|e| format!("Failed to write updated note file: {}", e))?;
     
-    println!("Note updated successfully: {:?}", note_file);
+    println!("Encrypted note updated successfully: {:?}", note_file);
     
     Ok(NoteResult {
         success: true,
@@ -812,8 +898,11 @@ async fn update_patient_note(
 }
 
 #[tauri::command]
-async fn load_patient_notes(app: tauri::AppHandle) -> Result<LoadNotesResult, String> {
+async fn load_patient_notes(app: tauri::AppHandle, password: String) -> Result<LoadNotesResult, String> {
     println!("Loading patient notes...");
+
+    // Get the DEK using the password
+    let dek = get_dek_from_auth_with_password(&app, &password).await?;
 
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let notes_dir = app_data_dir.join("notes");
@@ -836,12 +925,41 @@ async fn load_patient_notes(app: tauri::AppHandle) -> Result<LoadNotesResult, St
                 if let Ok(entry) = entry {
                     let path = entry.path();
                     if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                        // Read and parse the note file
+                        // Read and parse the encrypted note file
                         match fs::read_to_string(&path) {
                             Ok(content) => {
-                                match serde_json::from_str::<PatientNote>(&content) {
-                                    Ok(note) => notes.push(note),
-                                    Err(e) => println!("Failed to parse note file {:?}: {}", path, e),
+                                // Try to parse as encrypted note first
+                                match serde_json::from_str::<EncryptedNote>(&content) {
+                                    Ok(encrypted_note) => {
+                                        // Decrypt the note
+                                        match decrypt_note(&encrypted_note, &dek) {
+                                            Ok(note) => notes.push(note),
+                                            Err(e) => println!("Failed to decrypt note file {:?}: {}", path, e),
+                                        }
+                                    }
+                                    Err(_) => {
+                                        // Try to parse as legacy unencrypted note
+                                        match serde_json::from_str::<PatientNote>(&content) {
+                                            Ok(note) => {
+                                                println!("Found legacy unencrypted note, migrating: {:?}", path);
+                                                // Encrypt the legacy note and save it back
+                                                match encrypt_note(&note, &dek) {
+                                                    Ok(encrypted_note) => {
+                                                        let encrypted_content = serde_json::to_string_pretty(&encrypted_note)
+                                                            .map_err(|e| format!("Failed to serialize encrypted note: {}", e))?;
+                                                        if let Err(e) = fs::write(&path, encrypted_content) {
+                                                            println!("Failed to migrate legacy note {:?}: {}", path, e);
+                                                        } else {
+                                                            println!("Successfully migrated legacy note: {:?}", path);
+                                                        }
+                                                        notes.push(note);
+                                                    }
+                                                    Err(e) => println!("Failed to encrypt legacy note {:?}: {}", path, e),
+                                                }
+                                            }
+                                            Err(e) => println!("Failed to parse note file {:?}: {}", path, e),
+                                        }
+                                    }
                                 }
                             }
                             Err(e) => println!("Failed to read note file {:?}: {}", path, e),

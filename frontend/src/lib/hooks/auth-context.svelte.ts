@@ -11,6 +11,7 @@ class AuthContextClass implements AuthContext {
   #user = $state<User | null>(null);
   #isLoading = $state(false);
   #error = $state<string | null>(null);
+  #password = $state<string | null>(null); // Store password temporarily for encryption
 
   // Public
   state = $derived({
@@ -34,6 +35,7 @@ class AuthContextClass implements AuthContext {
 
       if (response.success && response.user) {
         this.#user = response.user;
+        this.#password = password; // Store password temporarily for encryption
         // Store in localStorage for persistence
         localStorage.setItem('auth_user', JSON.stringify(response.user));
       } else {
@@ -64,6 +66,7 @@ class AuthContextClass implements AuthContext {
 
       if (response.success && response.user) {
         this.#user = response.user;
+        this.#password = data.password; // Store password temporarily for encryption
         // Store in localStorage for persistence
         localStorage.setItem('auth_user', JSON.stringify(response.user));
       } else {
@@ -82,6 +85,7 @@ class AuthContextClass implements AuthContext {
    */
   logout(): void {
     this.#user = null;
+    this.#password = null; // Clear password from memory
     this.#error = null;
     localStorage.removeItem('auth_user');
   }
@@ -139,12 +143,22 @@ class AuthContextClass implements AuthContext {
       if (storedUser) {
         const user = JSON.parse(storedUser) as User;
         this.#user = user;
+        // Note: Password is not stored in localStorage for security
+        // User will need to re-enter password for encryption operations
       }
     } catch (error) {
       console.error('Failed to initialize auth state:', error);
       // Clear invalid stored data
       localStorage.removeItem('auth_user');
     }
+  }
+
+  /**
+   * Get the current password for encryption (only available when authenticated)
+   * @returns The password if available, null otherwise
+   */
+  getPassword(): string | null {
+    return this.#password;
   }
 }
 

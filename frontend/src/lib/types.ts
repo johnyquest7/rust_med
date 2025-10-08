@@ -96,6 +96,8 @@ export interface AuthContext {
   checkAuthStatus: () => Promise<void>;
   /** Initialize authentication state from localStorage */
   initialize: () => void;
+  /** Get the current password for encryption (only available when authenticated) */
+  getPassword: () => string | null;
 }
 
 export interface TauriNoteIn {

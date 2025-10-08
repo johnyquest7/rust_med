@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
 import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest } from '$lib/types';
+import { authContext } from '$lib/hooks/auth-context.svelte.js';
 
 declare global {
   interface Window {
@@ -66,7 +67,12 @@ class TauriService {
   }
 
   async loadNotes(): Promise<{ success: boolean; notes: TauriNote[]; error: string | null }> {
-    const result = await this.ensureTauri().core.invoke('load_patient_notes');
+    const password = authContext.getPassword();
+    if (!password) {
+      return { success: false, notes: [], error: 'Password required for decryption' };
+    }
+
+    const result = await this.ensureTauri().core.invoke('load_patient_notes', { password });
     if (result.success) {
       const notes = result.notes.map((n: any) => ({
         id: n.id,
@@ -84,7 +90,15 @@ class TauriService {
   }
 
   async createNote(note: TauriNoteIn): Promise<{ success: boolean; note_id: string | null; error: string | null }> {
-    return await this.ensureTauri().core.invoke('create_patient_note', note);
+    const password = authContext.getPassword();
+    if (!password) {
+      return { success: false, note_id: null, error: 'Password required for encryption' };
+    }
+
+    return await this.ensureTauri().core.invoke('create_patient_note', {
+      password,
+      ...note
+    });
   }
 
   async deleteNote(noteId: string): Promise<{ success: boolean; error: string | null }> {
@@ -95,7 +109,13 @@ class TauriService {
     noteId: string,
     note: TauriNoteIn
   ): Promise<{ success: boolean; note_id: string | null; error: string | null }> {
+    const password = authContext.getPassword();
+    if (!password) {
+      return { success: false, note_id: null, error: 'Password required for encryption' };
+    }
+
     return await this.ensureTauri().core.invoke('update_patient_note', {
+      password,
       noteId: noteId,
       ...note
     });

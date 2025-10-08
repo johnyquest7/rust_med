@@ -310,3 +310,51 @@ pub fn authenticate_user(auth_file: &AuthFile, password: &str) -> AuthResult<boo
         Err(_) => Ok(false),
     }
 }
+
+/// Get the decrypted DEK for authenticated user
+pub fn get_dek(auth_file: &AuthFile, password: &str) -> AuthResult<Vec<u8>> {
+    // Derive key from password using stored salt
+    let derived_key = derive_key_from_password(password, &auth_file.kdf.salt)?;
+
+    // Decrypt the DEK
+    decrypt_dek(&auth_file.wrapped_dek.ciphertext, &derived_key, &auth_file.wrapped_dek.nonce)
+}
+
+/// Encrypt data using the DEK
+pub fn encrypt_data(data: &str, dek: &[u8]) -> AuthResult<(String, String)> {
+    let key_array: GenericArray<u8, _> = GenericArray::from_slice(dek).clone();
+    let cipher = Aes256Gcm::new(&key_array);
+
+    // Generate a new nonce for this encryption
+    let nonce = generate_nonce()?;
+    let nonce_bytes = general_purpose::STANDARD.decode(&nonce)
+        .map_err(|e| AuthError::Cryptographic(format!("Invalid nonce: {}", e)))?;
+    let nonce_array: GenericArray<u8, _> = GenericArray::from_slice(&nonce_bytes).clone();
+
+    let ciphertext = cipher
+        .encrypt(&nonce_array, data.as_bytes())
+        .map_err(|e| AuthError::Cryptographic(format!("Failed to encrypt data: {}", e)))?;
+
+    let ciphertext_b64 = general_purpose::STANDARD.encode(&ciphertext);
+    Ok((ciphertext_b64, nonce))
+}
+
+/// Decrypt data using the DEK
+pub fn decrypt_data(ciphertext: &str, dek: &[u8], nonce: &str) -> AuthResult<String> {
+    let key_array: GenericArray<u8, _> = GenericArray::from_slice(dek).clone();
+    let cipher = Aes256Gcm::new(&key_array);
+
+    let nonce_bytes = general_purpose::STANDARD.decode(nonce)
+        .map_err(|e| AuthError::Cryptographic(format!("Invalid nonce: {}", e)))?;
+    let nonce_array: GenericArray<u8, _> = GenericArray::from_slice(&nonce_bytes).clone();
+
+    let ciphertext_bytes = general_purpose::STANDARD.decode(ciphertext)
+        .map_err(|e| AuthError::Cryptographic(format!("Invalid ciphertext: {}", e)))?;
+
+    let plaintext = cipher
+        .decrypt(&nonce_array, ciphertext_bytes.as_ref())
+        .map_err(|e| AuthError::Cryptographic(format!("Failed to decrypt data: {}", e)))?;
+
+    String::from_utf8(plaintext)
+        .map_err(|e| AuthError::Cryptographic(format!("Invalid UTF-8 in decrypted data: {}", e)))
+}
