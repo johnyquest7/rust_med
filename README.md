@@ -62,6 +62,10 @@ The Tauri app uses whatever is in the `frontend/build` directory, so while you c
 
 ## TODOs:
 
-- Add auth method that's better to set up for encryption
+
+- After recording, show that it's processing and then show result.
+- Sometimes, it's saying we're logged in but there's no password.
+- --> if the frontend reloads, it's not detecting that we're getting logged out
+- Research SOAP notes and see if there's a better way to view them.
 - Later: Move to sqlite with encryption
 - cd "/Users/alexledger/Library/Application Support/com.medical.notegenerator/"

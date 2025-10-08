@@ -270,7 +270,7 @@
 
     <Dialog.Footer class="flex justify-between">
       <Button
-        variant="destructive"
+        variant="outline"
         onclick={() => confirmDelete(selectedNote!)}
         class="flex items-center gap-2"
       >
