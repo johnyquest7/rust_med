@@ -1,41 +1,24 @@
 import type { User, AuthState, RegisterData, AuthContext, AuthResponse, CreateUserRequest, AuthenticateRequest } from '$lib/types.js';
 import { browser } from '$app/environment';
-
-declare global {
-  interface Window {
-    __TAURI__: {
-      core: { invoke: (command: string, args?: any) => Promise<any> };
-    };
-  }
-}
+import { tauriService } from '$lib/tauriService.js';
 
 /**
  * Authentication context using Svelte 5 runes
  * Provides global authentication state management
  */
 class AuthContextClass implements AuthContext {
-  // Private state using Svelte 5 runes
+  // Private
   #user = $state<User | null>(null);
   #isLoading = $state(false);
   #error = $state<string | null>(null);
 
-  // Public derived state - using $derived for proper reactivity
+  // Public
   state = $derived({
     user: this.#user,
     isAuthenticated: this.#user !== null,
     isLoading: this.#isLoading,
     error: this.#error
   });
-
-  /**
-   * Helper function to invoke Tauri commands
-   */
-  private async invoke(command: string, args?: any): Promise<any> {
-    if (!browser || typeof window.__TAURI__ === 'undefined') {
-      throw new Error('Tauri APIs not available');
-    }
-    return window.__TAURI__.core.invoke(command, args);
-  }
 
   /**
    * Login with password (username is retrieved from auth file)
@@ -47,7 +30,7 @@ class AuthContextClass implements AuthContext {
 
     try {
       const request: AuthenticateRequest = { password };
-      const response: AuthResponse = await this.invoke('authenticate_user_command', { request });
+      const response: AuthResponse = await tauriService.authenticateUser(request);
 
       if (response.success && response.user) {
         this.#user = response.user;
@@ -77,7 +60,7 @@ class AuthContextClass implements AuthContext {
         username: data.username,
         password: data.password
       };
-      const response: AuthResponse = await this.invoke('create_user_account_command', { request });
+      const response: AuthResponse = await tauriService.createUserAccount(request);
 
       if (response.success && response.user) {
         this.#user = response.user;
@@ -126,7 +109,7 @@ class AuthContextClass implements AuthContext {
     this.#error = null;
 
     try {
-      const response: AuthResponse = await this.invoke('check_auth_status');
+      const response: AuthResponse = await tauriService.checkAuthStatus();
       
       if (response.success && response.user) {
         this.#user = response.user;

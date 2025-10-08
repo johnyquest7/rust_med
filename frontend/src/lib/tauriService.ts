@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { TauriNote, TauriNoteIn } from '$lib/types';
+import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest } from '$lib/types';
 
 declare global {
   interface Window {
@@ -99,6 +99,19 @@ class TauriService {
       noteId: noteId,
       ...note
     });
+  }
+
+  // Authentication methods
+  async authenticateUser(request: AuthenticateRequest): Promise<AuthResponse> {
+    return await this.ensureTauri().core.invoke('authenticate_user_command', { request });
+  }
+
+  async createUserAccount(request: CreateUserRequest): Promise<AuthResponse> {
+    return await this.ensureTauri().core.invoke('create_user_account_command', { request });
+  }
+
+  async checkAuthStatus(): Promise<AuthResponse> {
+    return await this.ensureTauri().core.invoke('check_auth_status');
   }
 }
 
