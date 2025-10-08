@@ -188,11 +188,15 @@ pub fn derive_key_from_password(password: &str, salt: &str) -> AuthResult<Vec<u8
         .map_err(|e| AuthError::Cryptographic(format!("Failed to hash password: {}", e)))?;
 
     // Extract the hash bytes (first 32 bytes for AES-256)
-    let hash_string = password_hash.hash.unwrap().to_string();
-    let hash_bytes = general_purpose::STANDARD.decode(&hash_string)
-        .map_err(|e| AuthError::Cryptographic(format!("Failed to decode hash: {}", e)))?;
+    let hash = password_hash.hash.unwrap();
+    let hash_bytes = hash.as_bytes();
+    
+    // Ensure we have at least 32 bytes, pad with zeros if necessary
+    let mut key = vec![0u8; 32];
+    let copy_len = std::cmp::min(32, hash_bytes.len());
+    key[..copy_len].copy_from_slice(&hash_bytes[..copy_len]);
 
-    Ok(hash_bytes[..32].to_vec()) // Take first 32 bytes for AES-256
+    Ok(key)
 }
 
 /// Encrypt data encryption key with derived key
