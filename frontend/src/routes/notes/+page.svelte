@@ -18,25 +18,10 @@
   let noteToDelete = $state<TauriNote | null>(null);
 
   async function loadNotes() {
-    // const result = await tauriService.loadNotes();
-    // if (result.success) {
-    //   notes = result.notes;
-    // }
-
-    notes = [
-      {
-        id: 'placeholder-1',
-        firstName: 'Maria',
-        lastName: 'Rodriguez',
-        dateOfBirth: '1985-03-15',
-        noteType: 'soap',
-        transcript:
-          'Patient presents with chest pain that started this morning. Pain is described as sharp, 7/10 intensity, located in the center of chest. Pain radiates to left arm. Patient reports shortness of breath and mild nausea. No fever or cough. Pain worsens with deep breathing.',
-        medicalNote:
-          'SUBJECTIVE: 45-year-old female presents with acute onset chest pain.\n\nOBJECTIVE: Vital signs stable. Heart rate 88 bpm, BP 128/82, RR 18, O2 sat 98% on room air. No acute distress. Heart sounds regular, no murmurs. Lungs clear bilaterally.\n\nASSESSMENT: Chest pain, likely musculoskeletal vs cardiac etiology. Given patient demographics and presentation, cardiac workup recommended.\n\nPLAN: 1) EKG to rule out acute coronary syndrome 2) Chest X-ray 3) Troponin levels 4) Cardiology consultation if indicated 5) Pain management with acetaminophen 6) Follow up in 24-48 hours',
-        createdAt: '2024-01-15T10:30:00Z'
-      }
-    ];
+    const result = await tauriService.loadNotes();
+    if (result.success) {
+      notes = result.notes;
+    }
   }
 
   function confirmDelete(note: TauriNote) {
