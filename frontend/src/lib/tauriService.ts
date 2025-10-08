@@ -92,13 +92,23 @@ class TauriService {
   async createNote(note: TauriNoteIn): Promise<{ success: boolean; note_id: string | null; error: string | null }> {
     const password = authContext.getPassword();
     if (!password) {
+      console.error('No password available for encryption');
       return { success: false, note_id: null, error: 'Password required for encryption' };
     }
 
-    return await this.ensureTauri().core.invoke('create_patient_note', {
+    console.log('Creating note with password available');
+    const result = await this.ensureTauri().core.invoke('create_patient_note', {
       password,
-      ...note
+      firstName: note.firstName,
+      lastName: note.lastName,
+      dateOfBirth: note.dateOfBirth,
+      noteType: note.noteType,
+      transcript: note.transcript,
+      medicalNote: note.medicalNote
     });
+    
+    console.log('Create note result:', result);
+    return result;
   }
 
   async deleteNote(noteId: string): Promise<{ success: boolean; error: string | null }> {
@@ -117,7 +127,12 @@ class TauriService {
     return await this.ensureTauri().core.invoke('update_patient_note', {
       password,
       noteId: noteId,
-      ...note
+      firstName: note.firstName,
+      lastName: note.lastName,
+      dateOfBirth: note.dateOfBirth,
+      noteType: note.noteType,
+      transcript: note.transcript,
+      medicalNote: note.medicalNote
     });
   }
 

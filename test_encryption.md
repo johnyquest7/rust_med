@@ -20,6 +20,7 @@ This document outlines how to test the note encryption functionality that has be
    - `create_patient_note()` - Now encrypts notes before saving
    - `update_patient_note()` - Now encrypts notes before saving
    - `load_patient_notes()` - Now decrypts notes when loading
+   - `update_patient_note()` - Now encrypts entire note JSON before saving
    - All functions now require password parameter
 
 ### Frontend Changes (Svelte/TypeScript)

@@ -759,14 +759,14 @@ fn clean_llm_output(output: &str) -> String {
 async fn create_patient_note(
     app: tauri::AppHandle,
     password: String,
-    first_name: String,
-    last_name: String,
-    date_of_birth: String,
-    note_type: String,
+    firstName: String,
+    lastName: String,
+    dateOfBirth: String,
+    noteType: String,
     transcript: String,
-    medical_note: String,
+    medicalNote: String,
 ) -> Result<NoteResult, String> {
-    println!("Creating patient note for {} {}", first_name, last_name);
+    println!("Creating patient note for {} {}", firstName, lastName);
     
     // Get the DEK using the password
     let dek = get_dek_from_auth_with_password(&app, &password).await?;
@@ -787,12 +787,12 @@ async fn create_patient_note(
     
     let patient_note = PatientNote {
         id: note_id.clone(),
-        first_name,
-        last_name,
-        date_of_birth,
-        note_type,
+        first_name: firstName,
+        last_name: lastName,
+        date_of_birth: dateOfBirth,
+        note_type: noteType,
         transcript,
-        medical_note,
+        medical_note: medicalNote,
         created_at,
     };
     
@@ -820,26 +820,26 @@ async fn create_patient_note(
 async fn update_patient_note(
     app: tauri::AppHandle,
     password: String,
-    note_id: String,
-    first_name: String,
-    last_name: String,
-    date_of_birth: String,
-    note_type: String,
+    noteId: String,
+    firstName: String,
+    lastName: String,
+    dateOfBirth: String,
+    noteType: String,
     transcript: String,
-    medical_note: String,
+    medicalNote: String,
 ) -> Result<NoteResult, String> {
-    println!("Updating patient note {} for {} {}", note_id, first_name, last_name);
+    println!("Updating patient note {} for {} {}", noteId, firstName, lastName);
     
     // Get the DEK using the password
     let dek = get_dek_from_auth_with_password(&app, &password).await?;
     
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let notes_dir = app_data_dir.join("notes");
-    let note_file = notes_dir.join(format!("{}.json", note_id));
+    let note_file = notes_dir.join(format!("{}.json", noteId));
     
     // Check if the note file exists
     if !note_file.exists() {
-        return Err(format!("Note not found: {}", note_id));
+        return Err(format!("Note not found: {}", noteId));
     }
     
     // Load existing encrypted note to preserve creation date
@@ -851,13 +851,13 @@ async fn update_patient_note(
     
     // Create updated note with existing creation date
     let updated_note = PatientNote {
-        id: note_id.clone(),
-        first_name,
-        last_name,
-        date_of_birth,
-        note_type,
+        id: noteId.clone(),
+        first_name: firstName,
+        last_name: lastName,
+        date_of_birth: dateOfBirth,
+        note_type: noteType,
         transcript,
-        medical_note,
+        medical_note: medicalNote,
         created_at: existing_encrypted_note.created_at, // Preserve original creation date
     };
     
@@ -875,7 +875,7 @@ async fn update_patient_note(
     
     Ok(NoteResult {
         success: true,
-        note_id: Some(note_id),
+        note_id: Some(noteId),
         error: None,
     })
 }
