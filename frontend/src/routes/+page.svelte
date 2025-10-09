@@ -17,8 +17,6 @@
   import CheckCircle from '@lucide/svelte/icons/check-circle';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
-  // TODO: handle the processing UI and post-processing UI
-
   // Form state
   let formData = $state({
     firstName: '',
@@ -41,6 +39,11 @@
   let microphoneError = $state('');
   let recordingError = $state('');
   let processingError = $state('');
+
+  // Processing state
+  let isProcessing = $state(false);
+  let processingStage = $state<'transcribing' | 'generating' | 'saving' | 'complete' | null>(null);
+  let processingSuccess = $state(false);
 
   // Audio recording state
   let mediaRecorder: MediaRecorder | null = null;
@@ -465,6 +468,9 @@
     }
 
     try {
+      isProcessing = true;
+      processingSuccess = false;
+      processingStage = 'transcribing';
       statusType = 'info';
 
       // Get the recorded audio blob
@@ -474,14 +480,11 @@
         throw new Error('No audio data recorded');
       }
 
-      statusType = 'info';
-
       // Write the audio to a file using Tauri service
       const appDataDir = await tauriService.appLocalDataDir();
       const audioFilename = 'debug.wav';
       const audioPath = await tauriService.joinPath(appDataDir, audioFilename);
 
-      statusType = 'info';
       console.log('Transcribing audio...');
       const transcriptionResult = await tauriService.transcribeAudio(audioPath);
       if (!transcriptionResult.success) {
@@ -490,7 +493,9 @@
       }
 
       const transcript = transcriptionResult.transcript;
-      statusType = 'info';
+
+      // Move to generation stage
+      processingStage = 'generating';
 
       const noteGenResult = await tauriService.generateMedicalNote(transcript, formData.noteType);
 
@@ -499,7 +504,8 @@
       }
       const medicalNote = noteGenResult.note;
 
-      statusType = 'success';
+      // Move to saving stage
+      processingStage = 'saving';
 
       // Create the note with the processed data
       const createResult = await tauriService.createNote({
@@ -515,20 +521,34 @@
         throw new Error(createResult.error || 'Failed to create note');
       }
 
-      // Reset form after successful processing
-      formData = {
-        firstName: '',
-        lastName: '',
-        dateOfBirth: '',
-        noteType: 'soap'
-      };
+      // Mark as complete
+      processingStage = 'complete';
+      processingSuccess = true;
+      statusType = 'success';
 
-      // Reset recording state
-      resetRecording();
+      // Show success for 3 seconds before resetting
+      setTimeout(() => {
+        // Reset form after successful processing
+        formData = {
+          firstName: '',
+          lastName: '',
+          dateOfBirth: new Date().toISOString().split('T')[0],
+          noteType: 'soap'
+        };
+
+        // Reset recording state
+        resetRecording();
+        isProcessing = false;
+        processingStage = null;
+        processingSuccess = false;
+      }, 3000);
     } catch (error) {
       console.error('Failed to process recording:', error);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       processingError = `Failed to process recording: ${errorMsg}`;
+      isProcessing = false;
+      processingStage = null;
+      processingSuccess = false;
       setTimeout(() => (processingError = ''), 5000);
     }
   }
@@ -804,6 +824,52 @@
               {#if processingError}
                 <p class="text-sm text-destructive">{processingError}</p>
               {/if}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Processing Status -->
+        {#if isProcessing}
+          <div class="space-y-2">
+            <div class="relative w-full rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div class="flex items-start space-x-3">
+                <Loader2 class="mt-0.5 h-5 w-5 animate-spin text-blue-600" />
+                <div class="flex-1">
+                  <h5 class="mb-2 font-medium text-blue-900">Processing Recording</h5>
+                  <div class="space-y-2">
+                    <div class="flex items-center space-x-2">
+                      {#if processingStage === 'transcribing'}
+                        <Loader2 class="h-4 w-4 animate-spin text-blue-600" />
+                        <p class="text-sm text-blue-700">Transcribing audio...</p>
+                      {:else if processingStage === 'generating'}
+                        <Loader2 class="h-4 w-4 animate-spin text-blue-600" />
+                        <p class="text-sm text-blue-700">Generating medical note...</p>
+                      {:else if processingStage === 'saving'}
+                        <Loader2 class="h-4 w-4 animate-spin text-blue-600" />
+                        <p class="text-sm text-blue-700">Saving note...</p>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Success Message -->
+        {#if processingSuccess && processingStage === 'complete'}
+          <div class="space-y-2">
+            <div class="relative w-full rounded-lg border border-green-200 bg-green-50 p-4">
+              <div class="flex items-start space-x-3">
+                <CheckCircle class="mt-0.5 h-5 w-5 text-green-600" />
+                <div class="flex-1">
+                  <h5 class="mb-1 font-medium text-green-900">Successfully Processed!</h5>
+                  <p class="text-sm text-green-700">
+                    Medical note has been created and saved for {formData.firstName}
+                    {formData.lastName}.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         {/if}
