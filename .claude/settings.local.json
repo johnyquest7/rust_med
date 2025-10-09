@@ -10,7 +10,8 @@
       "Bash(npx shadcn-svelte@latest add:*)",
       "Bash(npm uninstall:*)",
       "Bash(npm install:*)",
-      "Bash(npx svelte-kit sync)"
+      "Bash(npx svelte-kit sync)",
+      "Bash(cargo:*)"
     ],
     "deny": []
   }

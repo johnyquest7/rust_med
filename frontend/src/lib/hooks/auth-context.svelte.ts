@@ -16,7 +16,7 @@ class AuthContextClass implements AuthContext {
   // Public
   state = $derived({
     user: this.#user,
-    isAuthenticated: this.#user !== null,
+    isAuthenticated: this.#user !== null && this.#password !== null && this.#password !== '',
     isLoading: this.#isLoading,
     error: this.#error
   });
@@ -142,9 +142,11 @@ class AuthContextClass implements AuthContext {
       const storedUser = localStorage.getItem('auth_user');
       if (storedUser) {
         const user = JSON.parse(storedUser) as User;
-        this.#user = user;
-        // Note: Password is not stored in localStorage for security
-        // User will need to re-enter password for encryption operations
+        // Don't restore user without password - user needs to log in again
+        // this.#user = user;
+        console.log('Found stored user but password not available - user needs to log in');
+        // Clear stored user to force re-login
+        localStorage.removeItem('auth_user');
       }
     } catch (error) {
       console.error('Failed to initialize auth state:', error);

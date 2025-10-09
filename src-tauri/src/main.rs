@@ -756,6 +756,7 @@ fn clean_llm_output(output: &str) -> String {
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 async fn create_patient_note(
     app: tauri::AppHandle,
     password: String,
@@ -817,6 +818,7 @@ async fn create_patient_note(
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
 async fn update_patient_note(
     app: tauri::AppHandle,
     password: String,
