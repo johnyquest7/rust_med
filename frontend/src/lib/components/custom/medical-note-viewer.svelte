@@ -34,10 +34,12 @@
     };
 
     // Common patterns for SOAP section headers
+    // More precise patterns that stop at the next section header
+    // Note: "O:" can also be "R:" (for Review/Results) in some SOAP variations
     const patterns = {
-      subjective: /(?:^|\n)(?:S:|Subjective:|SUBJECTIVE:?)\s*([\s\S]*?)(?=\n(?:O:|Objective:|OBJECTIVE:?|\n\n)|$)/i,
-      objective: /(?:^|\n)(?:O:|Objective:|OBJECTIVE:?)\s*([\s\S]*?)(?=\n(?:A:|Assessment:|ASSESSMENT:?|\n\n)|$)/i,
-      assessment: /(?:^|\n)(?:A:|Assessment:|ASSESSMENT:?)\s*([\s\S]*?)(?=\n(?:P:|Plan:|PLAN:?|\n\n)|$)/i,
+      subjective: /(?:^|\n)(?:S:|Subjective:|SUBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:O:|R:|Objective:|OBJECTIVE:))/i,
+      objective: /(?:^|\n)(?:O:|R:|Objective:|OBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:A:|Assessment:|ASSESSMENT:))/i,
+      assessment: /(?:^|\n)(?:A:|Assessment:|ASSESSMENT:?)\s*([\s\S]*?)(?=\n\s*(?:P:|Plan:|PLAN:))/i,
       plan: /(?:^|\n)(?:P:|Plan:|PLAN:?)\s*([\s\S]*?)$/i
     };
 
@@ -98,11 +100,12 @@
     <h3 class="text-lg font-semibold">Medical Note</h3>
     {#if soapSections}
       <Tabs.Root value="subjective" class="w-full">
-        <Tabs.List class="grid w-full grid-cols-4">
+        <Tabs.List class="grid w-full grid-cols-5">
           <Tabs.Trigger value="subjective">Subjective</Tabs.Trigger>
           <Tabs.Trigger value="objective">Objective</Tabs.Trigger>
           <Tabs.Trigger value="assessment">Assessment</Tabs.Trigger>
           <Tabs.Trigger value="plan">Plan</Tabs.Trigger>
+          <Tabs.Trigger value="full">Full Note</Tabs.Trigger>
         </Tabs.List>
         <Tabs.Content value="subjective" class="mt-4">
           <div class="px-0.5">
@@ -158,6 +161,11 @@
                 <p class="text-sm text-muted-foreground">No plan information available.</p>
               </div>
             {/if}
+          </div>
+        </Tabs.Content>
+        <Tabs.Content value="full" class="mt-4">
+          <div class="px-0.5">
+            <Textarea readonly value={note.medicalNote} class="h-[180px] resize-none" />
           </div>
         </Tabs.Content>
       </Tabs.Root>
