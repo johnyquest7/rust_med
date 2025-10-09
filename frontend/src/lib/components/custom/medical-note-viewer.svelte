@@ -1,0 +1,172 @@
+<script lang="ts">
+  import type { TauriNote } from '$lib/types';
+  import { Textarea } from '$lib/components/ui/textarea';
+  import * as Tabs from '$lib/components/ui/tabs';
+  import * as Accordion from '$lib/components/ui/accordion';
+
+  interface Props {
+    note: TauriNote;
+  }
+
+  let { note }: Props = $props();
+
+  interface SOAPSections {
+    subjective: string;
+    objective: string;
+    assessment: string;
+    plan: string;
+  }
+
+  function parseSOAPNote(medicalNote: string): SOAPSections | null {
+    // Only parse if it's a SOAP note type
+    if (!medicalNote) {
+      return null;
+    }
+
+    const sections: SOAPSections = {
+      subjective: '',
+      objective: '',
+      assessment: '',
+      plan: ''
+    };
+
+    // Common patterns for SOAP section headers
+    const patterns = {
+      subjective: /(?:^|\n)(?:S:|Subjective:|SUBJECTIVE:?)\s*([\s\S]*?)(?=\n(?:O:|Objective:|OBJECTIVE:?|\n\n)|$)/i,
+      objective: /(?:^|\n)(?:O:|Objective:|OBJECTIVE:?)\s*([\s\S]*?)(?=\n(?:A:|Assessment:|ASSESSMENT:?|\n\n)|$)/i,
+      assessment: /(?:^|\n)(?:A:|Assessment:|ASSESSMENT:?)\s*([\s\S]*?)(?=\n(?:P:|Plan:|PLAN:?|\n\n)|$)/i,
+      plan: /(?:^|\n)(?:P:|Plan:|PLAN:?)\s*([\s\S]*?)$/i
+    };
+
+    // Try to extract each section
+    for (const [key, pattern] of Object.entries(patterns)) {
+      const match = medicalNote.match(pattern);
+      if (match && match[1]) {
+        sections[key as keyof SOAPSections] = match[1].trim();
+      }
+    }
+
+    // Return null if no sections were found
+    if (!sections.subjective && !sections.objective && !sections.assessment && !sections.plan) {
+      return null;
+    }
+
+    return sections;
+  }
+
+  let soapSections = $derived(note.noteType === 'soap' ? parseSOAPNote(note.medicalNote) : null);
+</script>
+
+<div class="flex-1 space-y-6 overflow-y-auto py-4">
+  <!-- Patient Information -->
+  <div class="space-y-4">
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <div class="text-sm font-medium text-muted-foreground">First Name</div>
+        <p class="text-sm">{note.firstName}</p>
+      </div>
+      <div>
+        <div class="text-sm font-medium text-muted-foreground">Last Name</div>
+        <p class="text-sm">{note.lastName}</p>
+      </div>
+      <div>
+        <div class="text-sm font-medium text-muted-foreground">Date of Birth</div>
+        <p class="text-sm">{new Date(note.dateOfBirth).toLocaleDateString()}</p>
+      </div>
+      <div>
+        <div class="text-sm font-medium text-muted-foreground">Note Type</div>
+        <p class="text-sm">
+          <span
+            class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800"
+          >
+            {note.noteType === 'soap' ? 'SOAP Note' : 'Full Note'}
+          </span>
+        </p>
+      </div>
+      <div class="col-span-2">
+        <div class="text-sm font-medium text-muted-foreground">Created</div>
+        <p class="text-sm">{new Date(note.createdAt).toLocaleString()}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Medical Note with SOAP Tabs or Full Note -->
+  <div class="space-y-2">
+    <h3 class="text-lg font-semibold">Medical Note</h3>
+    {#if soapSections}
+      <Tabs.Root value="subjective" class="w-full">
+        <Tabs.List class="grid w-full grid-cols-4">
+          <Tabs.Trigger value="subjective">Subjective</Tabs.Trigger>
+          <Tabs.Trigger value="objective">Objective</Tabs.Trigger>
+          <Tabs.Trigger value="assessment">Assessment</Tabs.Trigger>
+          <Tabs.Trigger value="plan">Plan</Tabs.Trigger>
+        </Tabs.List>
+        <Tabs.Content value="subjective" class="mt-4">
+          <div class="px-0.5">
+            {#if soapSections.subjective}
+              <Textarea
+                readonly
+                value={soapSections.subjective}
+                class="min-h-[200px] resize-none"
+              />
+            {:else}
+              <p class="py-4 text-sm text-muted-foreground">No subjective information available.</p>
+            {/if}
+          </div>
+        </Tabs.Content>
+        <Tabs.Content value="objective" class="mt-4">
+          <div class="px-0.5">
+            {#if soapSections.objective}
+              <Textarea
+                readonly
+                value={soapSections.objective}
+                class="min-h-[200px] resize-none"
+              />
+            {:else}
+              <p class="py-4 text-sm text-muted-foreground">No objective information available.</p>
+            {/if}
+          </div>
+        </Tabs.Content>
+        <Tabs.Content value="assessment" class="mt-4">
+          <div class="px-0.5">
+            {#if soapSections.assessment}
+              <Textarea
+                readonly
+                value={soapSections.assessment}
+                class="min-h-[200px] resize-none"
+              />
+            {:else}
+              <p class="py-4 text-sm text-muted-foreground">No assessment information available.</p>
+            {/if}
+          </div>
+        </Tabs.Content>
+        <Tabs.Content value="plan" class="mt-4">
+          <div class="px-0.5">
+            {#if soapSections.plan}
+              <Textarea readonly value={soapSections.plan} class="min-h-[200px] resize-none" />
+            {:else}
+              <p class="py-4 text-sm text-muted-foreground">No plan information available.</p>
+            {/if}
+          </div>
+        </Tabs.Content>
+      </Tabs.Root>
+    {:else}
+      <!-- Non-SOAP note or failed to parse -->
+      <div class="px-0.5">
+        <Textarea readonly value={note.medicalNote} class="min-h-[200px] resize-none" />
+      </div>
+    {/if}
+  </div>
+
+  <!-- Transcript (at the bottom in accordion) -->
+  <Accordion.Root class="w-full">
+    <Accordion.Item value="transcript">
+      <Accordion.Trigger>View Transcript</Accordion.Trigger>
+      <Accordion.Content>
+        <div class="px-0.5 pt-2">
+          <Textarea readonly value={note.transcript} class="min-h-[150px] resize-none" />
+        </div>
+      </Accordion.Content>
+    </Accordion.Item>
+  </Accordion.Root>
+</div>

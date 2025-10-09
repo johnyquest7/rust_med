@@ -1,18 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
-  import { Textarea } from '$lib/components/ui/textarea';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/custom/table';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import MedicalNoteViewer from '$lib/components/custom/medical-note-viewer.svelte';
   import { tauriService } from '$lib/tauriService';
   import type { TauriNote } from '$lib/types';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Eye from '@lucide/svelte/icons/eye';
   import Calendar from '@lucide/svelte/icons/calendar';
-  import User from '@lucide/svelte/icons/user';
   import FileText from '@lucide/svelte/icons/file-text';
 
   let notes = $state<TauriNote[]>([]);
@@ -221,55 +220,7 @@
     </Dialog.Header>
 
     {#if selectedNote}
-      <div class="flex-1 space-y-6 overflow-y-auto py-4">
-        <!-- Patient Information -->
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <div class="text-sm font-medium text-muted-foreground">First Name</div>
-              <p class="text-sm">{selectedNote.firstName}</p>
-            </div>
-            <div>
-              <div class="text-sm font-medium text-muted-foreground">Last Name</div>
-              <p class="text-sm">{selectedNote.lastName}</p>
-            </div>
-            <div>
-              <div class="text-sm font-medium text-muted-foreground">Date of Birth</div>
-              <p class="text-sm">{new Date(selectedNote.dateOfBirth).toLocaleDateString()}</p>
-            </div>
-            <div>
-              <div class="text-sm font-medium text-muted-foreground">Note Type</div>
-              <p class="text-sm">
-                <span
-                  class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800"
-                >
-                  {selectedNote.noteType === 'soap' ? 'SOAP Note' : 'Full Note'}
-                </span>
-              </p>
-            </div>
-            <div class="col-span-2">
-              <div class="text-sm font-medium text-muted-foreground">Created</div>
-              <p class="text-sm">{new Date(selectedNote.createdAt).toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Transcript -->
-        <div class="space-y-2">
-          <h3 class="text-lg font-semibold">Transcript</h3>
-          <div class="px-0.5">
-            <Textarea readonly value={selectedNote.transcript} class="min-h-[100px] resize-none" />
-          </div>
-        </div>
-
-        <!-- Medical Note -->
-        <div class="space-y-2">
-          <h3 class="text-lg font-semibold">Medical Note</h3>
-          <div class="px-0.5">
-            <Textarea readonly value={selectedNote.medicalNote} class="min-h-[200px] resize-none" />
-          </div>
-        </div>
-      </div>
+      <MedicalNoteViewer note={selectedNote} />
     {/if}
 
     <Dialog.Footer class="flex justify-between">
