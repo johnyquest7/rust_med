@@ -11,7 +11,8 @@
       "Bash(npm uninstall:*)",
       "Bash(npm install:*)",
       "Bash(npx svelte-kit sync)",
-      "Bash(cargo:*)"
+      "Bash(cargo:*)",
+      "Read(//Users/alexledger/Library/Application Support/CleanShot/media/media_p0wLe6s3Vv/**)"
     ],
     "deny": []
   }

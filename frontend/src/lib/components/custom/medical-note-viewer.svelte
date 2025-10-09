@@ -100,13 +100,15 @@
     <h3 class="text-lg font-semibold">Medical Note</h3>
     {#if soapSections}
       <Tabs.Root value="subjective" class="w-full">
-        <Tabs.List class="grid w-full grid-cols-5">
-          <Tabs.Trigger value="subjective">Subjective</Tabs.Trigger>
-          <Tabs.Trigger value="objective">Objective</Tabs.Trigger>
-          <Tabs.Trigger value="assessment">Assessment</Tabs.Trigger>
-          <Tabs.Trigger value="plan">Plan</Tabs.Trigger>
-          <Tabs.Trigger value="full">Full Note</Tabs.Trigger>
-        </Tabs.List>
+        <div class="overflow-x-auto">
+          <Tabs.List class="inline-flex w-full min-w-max gap-1 sm:grid sm:grid-cols-5">
+            <Tabs.Trigger value="subjective" class="flex-1 whitespace-nowrap text-xs sm:text-sm">Subjective</Tabs.Trigger>
+            <Tabs.Trigger value="objective" class="flex-1 whitespace-nowrap text-xs sm:text-sm">Objective</Tabs.Trigger>
+            <Tabs.Trigger value="assessment" class="flex-1 whitespace-nowrap text-xs sm:text-sm">Assessment</Tabs.Trigger>
+            <Tabs.Trigger value="plan" class="flex-1 whitespace-nowrap text-xs sm:text-sm">Plan</Tabs.Trigger>
+            <Tabs.Trigger value="full" class="flex-1 whitespace-nowrap text-xs sm:text-sm">Full Note</Tabs.Trigger>
+          </Tabs.List>
+        </div>
         <Tabs.Content value="subjective" class="mt-4">
           <div class="px-0.5">
             {#if soapSections.subjective}
