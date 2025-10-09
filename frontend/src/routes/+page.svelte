@@ -527,6 +527,18 @@
       processingSuccess = true;
       statusType = 'success';
 
+      // Delete the audio file after successful processing
+      try {
+        if ("debug.wav" !== audioFilename) {
+          // TODO: we can remove this later
+          await tauriService.deleteAudioFile(audioPath);
+          console.log('Audio file deleted successfully');
+        }
+      } catch (error) {
+        console.warn('Failed to delete audio file:', error);
+        // Don't fail the whole process if audio deletion fails
+      }
+
       // Show success toast
       toast.success('Medical note created successfully!', {
         description: `Note saved for ${formData.firstName} ${formData.lastName}`

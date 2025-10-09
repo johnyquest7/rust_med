@@ -1117,7 +1117,7 @@ async fn authenticate_user_command(
 async fn get_user_info_command(app: tauri::AppHandle) -> Result<AuthResponse, String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let auth_path = app_data_dir.join("auth.json");
-    
+
     if !check_auth_file_exists(&auth_path) {
         return Ok(AuthResponse {
             success: false,
@@ -1125,7 +1125,7 @@ async fn get_user_info_command(app: tauri::AppHandle) -> Result<AuthResponse, St
             user: None,
         });
     }
-    
+
     match load_auth_file(&auth_path) {
         Ok(auth_file) => Ok(AuthResponse {
             success: true,
@@ -1143,6 +1143,23 @@ async fn get_user_info_command(app: tauri::AppHandle) -> Result<AuthResponse, St
     }
 }
 
+#[tauri::command]
+async fn delete_audio_file(audio_path: String) -> Result<bool, String> {
+    println!("Deleting audio file: {}", audio_path);
+
+    let path = std::path::Path::new(&audio_path);
+
+    if path.exists() {
+        fs::remove_file(&path)
+            .map_err(|e| format!("Failed to delete audio file: {}", e))?;
+        println!("Audio file deleted successfully");
+        Ok(true)
+    } else {
+        println!("Audio file not found (may have already been deleted): {}", audio_path);
+        Ok(true) // Return true anyway since the file is gone
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -1156,6 +1173,7 @@ fn main() {
             load_patient_notes,
             update_patient_note,
             delete_patient_note,
+            delete_audio_file,
             check_auth_status,
             create_user_account_command,
             authenticate_user_command,

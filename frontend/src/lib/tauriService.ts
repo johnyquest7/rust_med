@@ -148,6 +148,10 @@ class TauriService {
   async checkAuthStatus(): Promise<AuthResponse> {
     return await this.ensureTauri().core.invoke('check_auth_status');
   }
+
+  async deleteAudioFile(audioPath: string): Promise<boolean> {
+    return await this.ensureTauri().core.invoke('delete_audio_file', { audioPath });
+  }
 }
 
 // Create a singleton instance
