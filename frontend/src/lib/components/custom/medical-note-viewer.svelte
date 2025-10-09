@@ -196,7 +196,7 @@
 <Dialog.Root bind:open={isTranscriptOpen}>
   <Dialog.Content class="max-h-[80vh] max-w-[600px]">
     <Dialog.Header>
-      <Dialog.Title>Conversation Transcript</Dialog.Title>
+      <Dialog.Title>Transcript</Dialog.Title>
     </Dialog.Header>
     <div class="mt-4 max-h-[60vh] overflow-y-auto">
       <Textarea readonly value={note.transcript} class="min-h-[400px] resize-none" />
