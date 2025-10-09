@@ -83,7 +83,7 @@
           <CardDescription>Manage your account security and privacy settings</CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
-          <!-- TODO: changing passowrd not implemented -->
+          <!-- TODO: changing pasword not implemented -->
           <!-- <div class="flex items-center justify-between py-2">
             <div class="flex items-center space-x-3">
               <Key class="h-4 w-4 text-gray-500" />

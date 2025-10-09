@@ -60,12 +60,6 @@ The frontend is a sveltekit app and located at `frontend/`. The app is a typical
 
 The Tauri app uses whatever is in the `frontend/build` directory, so while you could develop as a typical app with `cd frontend && npm run dev`, you can always get live updates in the native Tauri app with `npm run dev` from the root of the repo. The major differences are that functionality may be limited in the web-only version because it doesn't have the rust backend and updates will be slower to take effect in the Tauri version.
 
-## TODOs:
+## TODOs and Dev notes
 
-
-- After recording, show that it's processing and then show result.
-- Sometimes, it's saying we're logged in but there's no password.
-- --> if the frontend reloads, it's not detecting that we're getting logged out
-- Research SOAP notes and see if there's a better way to view them.
-- Later: Move to sqlite with encryption
 - cd "/Users/alexledger/Library/Application Support/com.medical.notegenerator/"
