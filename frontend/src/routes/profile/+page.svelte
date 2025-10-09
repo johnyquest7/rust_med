@@ -5,7 +5,9 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Separator } from '$lib/components/ui/separator';
   import { Alert, AlertDescription } from '$lib/components/ui/alert';
-  import { User, Shield, LogOut } from 'lucide-svelte';
+  import User from '@lucide/svelte/icons/user';
+  import Shield from '@lucide/svelte/icons/shield';
+  import LogOut from '@lucide/svelte/icons/log-out';
   import { goto } from '$app/navigation';
 
   // Get authentication context

@@ -1,6 +1,9 @@
 <script lang="ts">
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-  import { House, Mic, FileText, User } from 'lucide-svelte';
+  import House from '@lucide/svelte/icons/house';
+  import Mic from '@lucide/svelte/icons/mic';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import User from '@lucide/svelte/icons/user';
   import { page } from '$app/state';
   import { getContext } from 'svelte';
   import type { AuthContext } from '$lib/types.js';

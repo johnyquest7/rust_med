@@ -9,7 +9,11 @@
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { tauriService } from '$lib/tauriService';
   import type { TauriNote } from '$lib/types';
-  import { Trash2, Eye, Calendar, User, FileText } from 'lucide-svelte';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Eye from '@lucide/svelte/icons/eye';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import User from '@lucide/svelte/icons/user';
+  import FileText from '@lucide/svelte/icons/file-text';
 
   let notes = $state<TauriNote[]>([]);
   let selectedNote = $state<TauriNote | null>(null);

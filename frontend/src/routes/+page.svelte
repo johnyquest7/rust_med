@@ -7,7 +7,15 @@
   import * as Select from '$lib/components/ui/select';
   import { tauriService } from '$lib/tauriService';
   import type { RecordingState } from '$lib/types';
-  import { Mic, Play, Pause, Square, Loader2, Star, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-svelte';
+  import Mic from '@lucide/svelte/icons/mic';
+  import Play from '@lucide/svelte/icons/play';
+  import Pause from '@lucide/svelte/icons/pause';
+  import Square from '@lucide/svelte/icons/square';
+  import Loader2 from '@lucide/svelte/icons/loader-2';
+  import Star from '@lucide/svelte/icons/star';
+  import AlertCircle from '@lucide/svelte/icons/alert-circle';
+  import CheckCircle from '@lucide/svelte/icons/check-circle';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   // TODO: handle the processing UI and post-processing UI
 
