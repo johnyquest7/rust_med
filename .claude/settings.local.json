@@ -5,7 +5,9 @@
       "Bash(git add:*)",
       "Bash(git push:*)",
       "Bash(rm:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx shadcn-svelte@latest add:*)"
     ],
     "deny": []
   }
