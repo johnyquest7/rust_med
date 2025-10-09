@@ -4,51 +4,149 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Medical Note Generator is a Tauri-based desktop application that records doctor-patient conversations, transcribes them using Whisper, and generates SOAP notes using a local LLM (llamafile).
+Medical Note Generator is a privacy-focused Tauri desktop application that records doctor-patient conversations, transcribes them using Whisper, and generates medical notes (SOAP or detailed) using a local LLM. All processing happens locally with encrypted storage.
 
 ## Development Commands
 
 ```bash
-# Install dependencies
+# Install dependencies (run from project root)
 npm install
+cd frontend && npm install
 
-# Run in development mode
-cargo tauri dev
+# Run in development mode (runs both frontend watch and Tauri dev)
+npm run dev
 
 # Build for production
+npm run build
+# or
 cargo tauri build
+
+# Frontend-only development (from frontend/ directory)
+cd frontend
+npm run dev          # Run dev server
+npm run build        # Build frontend
+npm run lint         # Lint code
+npm run format       # Format code with Prettier
+npm run check        # Type check with svelte-check
+```
+
+## Initial Setup
+
+The application requires downloading AI binaries before first run:
+
+```bash
+mkdir -p binaries/models
+
+# Download Whisper model (speech-to-text)
+wget https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile
+mv whisper-tiny.en.llamafile binaries/whisperfile
+chmod +x binaries/whisperfile
+
+# Download Llamafile (LLM runtime)
+curl -L -o llamafile "https://github.com/Mozilla-Ocho/llamafile/releases/download/0.9.3/llamafile-0.9.3"
+mv llamafile binaries/
+chmod +x binaries/llamafile
+
+# Download Medical LLaMA model (note generation)
+curl -L -o med_llama.gguf https://huggingface.co/garcianacho/MedLlama-2-7B-GGUF/resolve/main/MedLlama-2-7B.q4_K_S.gguf?download=true
+mv med_llama.gguf binaries/models/
 ```
 
 ## Architecture
 
-### Core Components
+### Technology Stack
 
-1. **Frontend (Web)**: Vanilla JavaScript modules in `src/`
-   - `main.js`: Main entry point and app initialization
-   - `modules/`: Modular components for UI, recording, transcription management
-   - Uses Web Audio API for browser-based audio recording
+- **Frontend**: SvelteKit 2 with static adapter and Svelte 5, Tailwind CSS 4, TypeScript
+- **Backend**: Rust + Tauri 2.0
+- **Authentication**: Argon2id for password hashing, AES-256-GCM for encryption
+- **AI Models**: Local Whisper (transcription), MedLlama (note generation)
 
-2. **Backend (Rust)**: Tauri application in `src-tauri/`
-   - `main.rs`: Core Tauri commands for transcription and note generation
-   - `commands.rs`: Additional commands (appears to be for a different recording approach)
-   - Uses `tauri-plugin-shell` to execute whisperfile and llamafile binaries
+### Frontend Architecture (SvelteKit)
 
-3. **AI Components**: Local binaries in `binaries/`
-   - `whisperfile.exe`: Speech-to-text transcription
-   - `llamafile.exe`: Medical note generation
-   - Models in `binaries/models/`: `whisper-tiny.en.gguf`, `med_llama.gguf`
+The frontend is located in `frontend/` and uses SvelteKit in static/prerendered mode:
+
+- **Entry Point**: `frontend/src/routes/+page.svelte`
+- **Component Library**: Custom components in `frontend/src/lib/components/`
+  - `auth-provider.svelte`: Global authentication state management
+  - `authenticated-layout.svelte`: Protected layout wrapper
+  - `custom/`: Business logic components (login, register, tables)
+  - `ui/`: Reusable UI components built on bits-ui/shadcn
+- **Build Output**: `frontend/build/` (consumed by Tauri)
+- **Development Flow**: `npm run dev` at root runs `vite build --watch` alongside `cargo tauri dev` for live updates
+
+### Backend Architecture (Rust)
+
+Core files in `src-tauri/src/`:
+
+1. **main.rs** - Primary Tauri commands and application setup
+   - Audio recording via Web Audio API (browser-based)
+   - Transcription: Executes whisperfile binary with `--no-prints` flag
+   - Note generation: Streams llamafile output with real-time events
+   - Patient note CRUD operations (encrypted storage)
+   - Authentication commands
+
+2. **auth.rs** - Zero-knowledge encryption system
+   - Password-based key derivation (Argon2id)
+   - Data Encryption Key (DEK) wrapped with user password
+   - AES-256-GCM encryption for patient notes
+   - No passwords stored, only password hashes for DEK unwrapping
+
+3. **commands.rs** - Alternative recording implementation (appears unused)
+   - References `tauri-plugin-mic-recorder` (not in current Cargo.toml)
+   - Likely legacy code from earlier architecture iteration
+
+### AI Processing Pipeline
+
+1. **Audio Recording**:
+   - Web Audio API captures microphone input
+   - Converts to WAV format in browser
+   - Saves to Tauri app local data directory
+
+2. **Transcription** (whisperfile):
+   - Binary paths resolved for dev/prod environments
+   - Model search order: `whisper-tiny.en.gguf` → fallback models
+   - Output parsing: `[00:00:00.000 --> 00:00:05.000] text` format
+   - Validation: Checks WAV headers, file size, audio content
+
+3. **Note Generation** (llamafile):
+   - Two note types: SOAP (structured) or Full (detailed 13-section)
+   - Uses LLaMA chat template with medical prompt engineering
+   - Streaming output via events (`note-generation-stream`, `note-generation-complete`)
+   - Output cleaning removes chat artifacts and ensures formatting
+
+4. **Storage**:
+   - Patient notes encrypted with DEK before saving
+   - Stored as JSON files in `{app_local_data_dir}/notes/`
+   - Legacy unencrypted notes auto-migrated on load
 
 ### Key Implementation Details
 
-- **Audio Recording**: Web Audio API captures audio, converts to WAV format
-- **File Handling**: Audio saved to Tauri app local data directory
-- **Transcription**: Whisperfile executed with `--no-prints` flag to get clean output
-- **Note Generation**: Llamafile uses SOAP format prompt template with specific parameters for medical context
-- **Error Handling**: Comprehensive validation for audio files, binary paths, and model availability
+- **Binary Path Resolution**: Checks multiple locations for dev (project root) and prod (resource dir)
+- **Absolute Paths Required**: Llamafile model loading needs canonicalized paths on Windows
+- **Streaming Output**: LLM generation emits real-time events for UI updates
+- **Error Handling**: Comprehensive validation with user-friendly error messages
+- **Whisper Output Parsing**: Handles timestamped format and blank audio detection
+- **LLM Output Cleaning**: Removes template artifacts, stops on repetition/conversation continuation
+- **Encryption Flow**: Password → Argon2 → KEK → Unwrap DEK → AES-GCM encrypt/decrypt data
+
+### Security Architecture
+
+- **Zero-Knowledge Design**: Password never stored, only used to derive KEK
+- **DEK Wrapping**: Random 256-bit DEK encrypted with password-derived key
+- **Data Encryption**: All patient notes encrypted at rest with AES-256-GCM
+- **Key Derivation**: Argon2id with 64MB memory, 3 iterations, parallelism=2
+
+### Data Storage Locations
+
+- **App Data**: `~/Library/Application Support/com.medical.notegenerator/` (macOS)
+- **Authentication**: `auth.json` in app data directory
+- **Patient Notes**: `notes/*.json` in app data directory (encrypted)
+- **Audio Files**: Temporary WAV files in app data directory
 
 ### Important Patterns
 
-- Binary paths are resolved dynamically for both development and production environments
-- Whisperfile output parsing handles timestamped format `[00:00:00.000 --> 00:00:05.000] text`
-- LLM output cleaning removes chat template artifacts and ensures proper SOAP formatting
-- Absolute paths required for llamafile model loading on Windows
+- **Tauri Commands**: All backend functions exposed via `#[tauri::command]` macro
+- **Event Emission**: Backend emits progress events for long-running operations
+- **Frontend Auth Flow**: AuthProvider manages global authentication state with Svelte 5 runes
+- **Static Generation**: Frontend prerendered for Tauri embedding (no SSR)
+- **Concurrency**: `npm run dev` uses `concurrently` to run frontend watch + Tauri dev
