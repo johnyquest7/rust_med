@@ -70,9 +70,79 @@ The frontend is located in `frontend/` and uses SvelteKit in static/prerendered 
   - `auth-provider.svelte`: Global authentication state management
   - `authenticated-layout.svelte`: Protected layout wrapper
   - `custom/`: Business logic components (login, register, tables)
-  - `ui/`: Reusable UI components built on bits-ui/shadcn
+  - `ui/`: Reusable UI components built on bits-ui/shadcn-svelte
 - **Build Output**: `frontend/build/` (consumed by Tauri)
 - **Development Flow**: `npm run dev` at root runs `vite build --watch` alongside `cargo tauri dev` for live updates
+
+#### Using shadcn-svelte Components
+
+This project uses [shadcn-svelte](https://shadcn-svelte.com/) for UI components, which are based on bits-ui primitives. Components are stored locally in `frontend/src/lib/components/ui/`.
+
+**Adding New Components:**
+
+```bash
+# From frontend/ directory
+npx shadcn-svelte@latest add <component-name>
+
+# Examples:
+npx shadcn-svelte@latest add button
+npx shadcn-svelte@latest add dialog
+npx shadcn-svelte@latest add table
+```
+
+**Using Components in Your Code:**
+
+```svelte
+<script lang="ts">
+  import { Button } from '$lib/components/ui/button';
+  import * as Dialog from '$lib/components/ui/dialog';
+  import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+</script>
+
+<Card>
+  <CardHeader>
+    <CardTitle>Example Card</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <Button>Click me</Button>
+  </CardContent>
+</Card>
+```
+
+**Icon Usage (Optimized for Build Performance):**
+
+Use direct imports from `@lucide/svelte` to minimize bundle size and build time:
+
+```svelte
+<script lang="ts">
+  // ✅ DO: Direct imports (fast builds, small bundles)
+  import User from '@lucide/svelte/icons/user';
+  import Shield from '@lucide/svelte/icons/shield';
+  import LogOut from '@lucide/svelte/icons/log-out';
+
+  // ❌ DON'T: Barrel imports (slow builds, large bundles)
+  // import { User, Shield, LogOut } from '@lucide/svelte';
+</script>
+
+<User class="h-4 w-4" />
+```
+
+**Styling Components:**
+
+- Components use Tailwind CSS 4 for styling
+- Custom styles can be passed via the `class` prop
+- Use `tailwind-merge` (imported as `cn` utility) for combining classes:
+
+```svelte
+<script lang="ts">
+  import { Button } from '$lib/components/ui/button';
+  import { cn } from '$lib/utils';
+</script>
+
+<Button class={cn("bg-blue-500", someCondition && "bg-red-500")}>
+  Styled Button
+</Button>
+```
 
 ### Backend Architecture (Rust)
 
