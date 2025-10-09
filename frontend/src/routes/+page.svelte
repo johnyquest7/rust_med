@@ -7,6 +7,7 @@
   import * as Select from '$lib/components/ui/select';
   import { tauriService } from '$lib/tauriService';
   import type { RecordingState } from '$lib/types';
+  import { toast } from 'svelte-sonner';
   import Mic from '@lucide/svelte/icons/mic';
   import Play from '@lucide/svelte/icons/play';
   import Pause from '@lucide/svelte/icons/pause';
@@ -526,26 +527,33 @@
       processingSuccess = true;
       statusType = 'success';
 
-      // Show success for 3 seconds before resetting
-      setTimeout(() => {
-        // Reset form after successful processing
-        formData = {
-          firstName: '',
-          lastName: '',
-          dateOfBirth: new Date().toISOString().split('T')[0],
-          noteType: 'soap'
-        };
+      // Show success toast
+      toast.success('Medical note created successfully!', {
+        description: `Note saved for ${formData.firstName} ${formData.lastName}`
+      });
 
-        // Reset recording state
-        resetRecording();
-        isProcessing = false;
-        processingStage = null;
-        processingSuccess = false;
-      }, 3000);
+      // Reset form after successful processing
+      formData = {
+        firstName: '',
+        lastName: '',
+        dateOfBirth: new Date().toISOString().split('T')[0],
+        noteType: 'soap'
+      };
+
+      // Reset recording state
+      resetRecording();
+      isProcessing = false;
+      processingStage = null;
+      processingSuccess = false;
     } catch (error) {
       console.error('Failed to process recording:', error);
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       processingError = `Failed to process recording: ${errorMsg}`;
+
+      toast.error('Failed to process recording', {
+        description: errorMsg
+      });
+
       isProcessing = false;
       processingStage = null;
       processingSuccess = false;
@@ -846,24 +854,6 @@
                     {:else}
                       Processing...
                     {/if}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        {/if}
-
-        <!-- Success Message -->
-        {#if processingSuccess && processingStage === 'complete'}
-          <div class="space-y-2">
-            <div class="relative w-full rounded-lg border border-green-200 bg-green-50 p-4">
-              <div class="flex items-start space-x-3">
-                <CheckCircle class="mt-0.5 h-5 w-5 text-green-600" />
-                <div class="flex-1">
-                  <h5 class="mb-1 font-medium text-green-900">Successfully Processed!</h5>
-                  <p class="text-sm text-green-700">
-                    Medical note has been created and saved for {formData.firstName}
-                    {formData.lastName}.
                   </p>
                 </div>
               </div>
