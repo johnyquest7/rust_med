@@ -836,20 +836,17 @@
                 <Loader2 class="mt-0.5 h-5 w-5 animate-spin text-blue-600" />
                 <div class="flex-1">
                   <h5 class="mb-2 font-medium text-blue-900">Processing Recording</h5>
-                  <div class="space-y-2">
-                    <div class="flex items-center space-x-2">
-                      {#if processingStage === 'transcribing'}
-                        <Loader2 class="h-4 w-4 animate-spin text-blue-600" />
-                        <p class="text-sm text-blue-700">Transcribing audio...</p>
-                      {:else if processingStage === 'generating'}
-                        <Loader2 class="h-4 w-4 animate-spin text-blue-600" />
-                        <p class="text-sm text-blue-700">Generating medical note...</p>
-                      {:else if processingStage === 'saving'}
-                        <Loader2 class="h-4 w-4 animate-spin text-blue-600" />
-                        <p class="text-sm text-blue-700">Saving note...</p>
-                      {/if}
-                    </div>
-                  </div>
+                  <p class="text-sm text-blue-700">
+                    {#if processingStage === 'transcribing'}
+                      Transcribing audio...
+                    {:else if processingStage === 'generating'}
+                      Generating medical note...
+                    {:else if processingStage === 'saving'}
+                      Saving note...
+                    {:else}
+                      Processing...
+                    {/if}
+                  </p>
                 </div>
               </div>
             </div>
