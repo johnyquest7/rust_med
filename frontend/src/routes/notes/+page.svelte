@@ -216,7 +216,14 @@
 <Dialog.Root bind:open={isDialogOpen}>
   <Dialog.Content class="flex max-h-[90vh] w-[95vw] max-w-[540px] flex-col overflow-hidden">
     <Dialog.Header>
-      <Dialog.Title>{selectedNote?.firstName} {selectedNote?.lastName}</Dialog.Title>
+      <Dialog.Title>
+        {selectedNote?.firstName} {selectedNote?.lastName}
+        {#if selectedNote}
+          <span class="text-sm font-normal text-muted-foreground">
+            - {new Date(selectedNote.createdAt).toLocaleDateString()}
+          </span>
+        {/if}
+      </Dialog.Title>
     </Dialog.Header>
 
     {#if selectedNote}
