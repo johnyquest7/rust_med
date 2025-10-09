@@ -1,14 +1,17 @@
 <script lang="ts">
   import type { TauriNote } from '$lib/types';
   import { Textarea } from '$lib/components/ui/textarea';
+  import { Button } from '$lib/components/ui/button';
   import * as Tabs from '$lib/components/ui/tabs';
-  import * as Accordion from '$lib/components/ui/accordion';
+  import * as Dialog from '$lib/components/ui/dialog';
+  import FileText from '@lucide/svelte/icons/file-text';
 
   interface Props {
     note: TauriNote;
   }
 
   let { note }: Props = $props();
+  let isTranscriptOpen = $state(false);
 
   interface SOAPSections {
     subjective: string;
@@ -107,10 +110,12 @@
               <Textarea
                 readonly
                 value={soapSections.subjective}
-                class="min-h-[200px] resize-none"
+                class="h-[180px] resize-none"
               />
             {:else}
-              <p class="py-4 text-sm text-muted-foreground">No subjective information available.</p>
+              <div class="flex h-[180px] items-center justify-center rounded-md border">
+                <p class="text-sm text-muted-foreground">No subjective information available.</p>
+              </div>
             {/if}
           </div>
         </Tabs.Content>
@@ -120,10 +125,12 @@
               <Textarea
                 readonly
                 value={soapSections.objective}
-                class="min-h-[200px] resize-none"
+                class="h-[180px] resize-none"
               />
             {:else}
-              <p class="py-4 text-sm text-muted-foreground">No objective information available.</p>
+              <div class="flex h-[180px] items-center justify-center rounded-md border">
+                <p class="text-sm text-muted-foreground">No objective information available.</p>
+              </div>
             {/if}
           </div>
         </Tabs.Content>
@@ -133,19 +140,23 @@
               <Textarea
                 readonly
                 value={soapSections.assessment}
-                class="min-h-[200px] resize-none"
+                class="h-[180px] resize-none"
               />
             {:else}
-              <p class="py-4 text-sm text-muted-foreground">No assessment information available.</p>
+              <div class="flex h-[180px] items-center justify-center rounded-md border">
+                <p class="text-sm text-muted-foreground">No assessment information available.</p>
+              </div>
             {/if}
           </div>
         </Tabs.Content>
         <Tabs.Content value="plan" class="mt-4">
           <div class="px-0.5">
             {#if soapSections.plan}
-              <Textarea readonly value={soapSections.plan} class="min-h-[200px] resize-none" />
+              <Textarea readonly value={soapSections.plan} class="h-[180px] resize-none" />
             {:else}
-              <p class="py-4 text-sm text-muted-foreground">No plan information available.</p>
+              <div class="flex h-[180px] items-center justify-center rounded-md border">
+                <p class="text-sm text-muted-foreground">No plan information available.</p>
+              </div>
             {/if}
           </div>
         </Tabs.Content>
@@ -153,20 +164,35 @@
     {:else}
       <!-- Non-SOAP note or failed to parse -->
       <div class="px-0.5">
-        <Textarea readonly value={note.medicalNote} class="min-h-[200px] resize-none" />
+        <Textarea readonly value={note.medicalNote} class="h-[180px] resize-none" />
       </div>
     {/if}
   </div>
 
-  <!-- Transcript (at the bottom in accordion) -->
-  <Accordion.Root class="w-full">
-    <Accordion.Item value="transcript">
-      <Accordion.Trigger>View Transcript</Accordion.Trigger>
-      <Accordion.Content>
-        <div class="px-0.5 pt-2">
-          <Textarea readonly value={note.transcript} class="min-h-[150px] resize-none" />
-        </div>
-      </Accordion.Content>
-    </Accordion.Item>
-  </Accordion.Root>
+  <!-- Transcript Button -->
+  <div class="flex justify-center pt-2">
+    <Button
+      variant="outline"
+      onclick={() => (isTranscriptOpen = true)}
+      class="flex items-center gap-2"
+    >
+      <FileText class="h-4 w-4" />
+      View Full Transcript
+    </Button>
+  </div>
 </div>
+
+<!-- Transcript Dialog -->
+<Dialog.Root bind:open={isTranscriptOpen}>
+  <Dialog.Content class="max-h-[80vh] max-w-[600px]">
+    <Dialog.Header>
+      <Dialog.Title>Conversation Transcript</Dialog.Title>
+    </Dialog.Header>
+    <div class="mt-4 max-h-[60vh] overflow-y-auto">
+      <Textarea readonly value={note.transcript} class="min-h-[400px] resize-none" />
+    </div>
+    <Dialog.Footer>
+      <Button variant="outline" onclick={() => (isTranscriptOpen = false)}>Close</Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
