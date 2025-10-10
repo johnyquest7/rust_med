@@ -11,23 +11,35 @@ use std::fs;
 use chrono::{DateTime, Local};
 use std::io::{BufRead, BufReader};
 use std::process::Stdio;
+use rusqlite::Connection;
 
 mod auth;
+mod db;
 
 use auth::*;
+use db::*;
 
-/// Helper function to get the DEK from the auth file with password
-async fn get_dek_from_auth_with_password(app: &tauri::AppHandle, password: &str) -> Result<Vec<u8>, String> {
+/// Helper to get database connection
+fn get_db_connection(app: &tauri::AppHandle) -> Result<Connection, String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    let auth_path = app_data_dir.join("auth.json");
-    
-    if !check_auth_file_exists(&auth_path) {
-        return Err("No authentication file found".to_string());
+    let db_path = app_data_dir.join("medical_notes.db");
+
+    initialize_database(&db_path)
+        .map_err(|e| format!("Failed to initialize database: {}", e))
+}
+
+/// Helper function to get the DEK from the database with password
+async fn get_dek_from_auth_with_password(app: &tauri::AppHandle, password: &str) -> Result<Vec<u8>, String> {
+    let conn = get_db_connection(app)?;
+
+    // Check if auth exists in database
+    if !check_auth_exists_in_db(&conn) {
+        return Err("No authentication data found".to_string());
     }
-    
-    let auth_file = load_auth_file(&auth_path)
-        .map_err(|e| format!("Failed to load auth file: {}", e))?;
-    
+
+    let auth_file = load_auth_from_db(&conn)
+        .map_err(|e| format!("Failed to load auth from database: {}", e))?;
+
     get_dek(&auth_file, password)
         .map_err(|e| format!("Failed to decrypt DEK: {}", e))
 }
@@ -768,24 +780,15 @@ async fn create_patient_note(
     medicalNote: String,
 ) -> Result<NoteResult, String> {
     println!("Creating patient note for {} {}", firstName, lastName);
-    
+
     // Get the DEK using the password
     let dek = get_dek_from_auth_with_password(&app, &password).await?;
-    
-    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    let notes_dir = app_data_dir.join("notes");
-    
-    // Create notes directory if it doesn't exist
-    if !notes_dir.exists() {
-        fs::create_dir_all(&notes_dir).map_err(|e| {
-            format!("Failed to create notes directory: {}", e)
-        })?;
-    }
-    
+    let conn = get_db_connection(&app)?;
+
     // Generate unique note ID
     let note_id = format!("{}", chrono::Local::now().timestamp_millis());
     let created_at = chrono::Local::now();
-    
+
     let patient_note = PatientNote {
         id: note_id.clone(),
         first_name: firstName,
@@ -796,20 +799,23 @@ async fn create_patient_note(
         medical_note: medicalNote,
         created_at,
     };
-    
+
     // Encrypt the note
     let encrypted_note = encrypt_note(&patient_note, &dek)?;
-    
-    // Save encrypted note to JSON file
-    let note_file = notes_dir.join(format!("{}.json", note_id));
-    let json_content = serde_json::to_string_pretty(&encrypted_note)
-        .map_err(|e| format!("Failed to serialize encrypted note: {}", e))?;
-    
-    fs::write(&note_file, json_content)
-        .map_err(|e| format!("Failed to write note file: {}", e))?;
-    
-    println!("Encrypted note created successfully: {:?}", note_file);
-    
+
+    // Convert to database format and save
+    let encrypted_note_data = EncryptedNoteData {
+        id: encrypted_note.id.clone(),
+        encrypted_data: encrypted_note.encrypted_data,
+        nonce: encrypted_note.nonce,
+        created_at: encrypted_note.created_at,
+    };
+
+    save_encrypted_note(&conn, &encrypted_note_data)
+        .map_err(|e| format!("Failed to save note to database: {}", e))?;
+
+    println!("Encrypted note created successfully in database: {}", note_id);
+
     Ok(NoteResult {
         success: true,
         note_id: Some(note_id),
@@ -831,26 +837,20 @@ async fn update_patient_note(
     medicalNote: String,
 ) -> Result<NoteResult, String> {
     println!("Updating patient note {} for {} {}", noteId, firstName, lastName);
-    
+
     // Get the DEK using the password
     let dek = get_dek_from_auth_with_password(&app, &password).await?;
-    
-    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    let notes_dir = app_data_dir.join("notes");
-    let note_file = notes_dir.join(format!("{}.json", noteId));
-    
-    // Check if the note file exists
-    if !note_file.exists() {
+    let conn = get_db_connection(&app)?;
+
+    // Check if the note exists in database
+    if !note_exists(&conn, &noteId).map_err(|e| format!("Failed to check note existence: {}", e))? {
         return Err(format!("Note not found: {}", noteId));
     }
-    
+
     // Load existing encrypted note to preserve creation date
-    let existing_content = fs::read_to_string(&note_file)
-        .map_err(|e| format!("Failed to read existing note: {}", e))?;
-    
-    let existing_encrypted_note: EncryptedNote = serde_json::from_str(&existing_content)
-        .map_err(|e| format!("Failed to parse existing encrypted note: {}", e))?;
-    
+    let existing_encrypted_note = load_encrypted_note_by_id(&conn, &noteId)
+        .map_err(|e| format!("Failed to load existing note: {}", e))?;
+
     // Create updated note with existing creation date
     let updated_note = PatientNote {
         id: noteId.clone(),
@@ -862,19 +862,23 @@ async fn update_patient_note(
         medical_note: medicalNote,
         created_at: existing_encrypted_note.created_at, // Preserve original creation date
     };
-    
+
     // Encrypt the updated note
     let encrypted_updated_note = encrypt_note(&updated_note, &dek)?;
-    
-    // Save updated encrypted note to JSON file
-    let json_content = serde_json::to_string_pretty(&encrypted_updated_note)
-        .map_err(|e| format!("Failed to serialize updated encrypted note: {}", e))?;
-    
-    fs::write(&note_file, json_content)
-        .map_err(|e| format!("Failed to write updated note file: {}", e))?;
-    
-    println!("Encrypted note updated successfully: {:?}", note_file);
-    
+
+    // Convert to database format and save
+    let encrypted_note_data = EncryptedNoteData {
+        id: encrypted_updated_note.id.clone(),
+        encrypted_data: encrypted_updated_note.encrypted_data,
+        nonce: encrypted_updated_note.nonce,
+        created_at: encrypted_updated_note.created_at,
+    };
+
+    save_encrypted_note(&conn, &encrypted_note_data)
+        .map_err(|e| format!("Failed to save updated note to database: {}", e))?;
+
+    println!("Encrypted note updated successfully in database: {}", noteId);
+
     Ok(NoteResult {
         success: true,
         note_id: Some(noteId),
@@ -888,85 +892,31 @@ async fn load_patient_notes(app: tauri::AppHandle, password: String) -> Result<L
 
     // Get the DEK using the password
     let dek = get_dek_from_auth_with_password(&app, &password).await?;
+    let conn = get_db_connection(&app)?;
 
-    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    let notes_dir = app_data_dir.join("notes");
-    
-    // Check if notes directory exists
-    if !notes_dir.exists() {
-        return Ok(LoadNotesResult {
-            success: true,
-            notes: Vec::new(),
-            error: None,
-        });
-    }
-    
+    // Load all encrypted notes from database
+    let encrypted_notes = load_all_encrypted_notes(&conn)
+        .map_err(|e| format!("Failed to load notes from database: {}", e))?;
+
     let mut notes = Vec::new();
-    
-    // Read all JSON files in the notes directory
-    match fs::read_dir(&notes_dir) {
-        Ok(entries) => {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                        // Read and parse the encrypted note file
-                        match fs::read_to_string(&path) {
-                            Ok(content) => {
-                                // Try to parse as encrypted note first
-                                match serde_json::from_str::<EncryptedNote>(&content) {
-                                    Ok(encrypted_note) => {
-                                        // Decrypt the note
-                                        match decrypt_note(&encrypted_note, &dek) {
-                                            Ok(note) => notes.push(note),
-                                            Err(e) => println!("Failed to decrypt note file {:?}: {}", path, e),
-                                        }
-                                    }
-                                    Err(_) => {
-                                        // Try to parse as legacy unencrypted note
-                                        match serde_json::from_str::<PatientNote>(&content) {
-                                            Ok(note) => {
-                                                println!("Found legacy unencrypted note, migrating: {:?}", path);
-                                                // Encrypt the legacy note and save it back
-                                                match encrypt_note(&note, &dek) {
-                                                    Ok(encrypted_note) => {
-                                                        let encrypted_content = serde_json::to_string_pretty(&encrypted_note)
-                                                            .map_err(|e| format!("Failed to serialize encrypted note: {}", e))?;
-                                                        if let Err(e) = fs::write(&path, encrypted_content) {
-                                                            println!("Failed to migrate legacy note {:?}: {}", path, e);
-                                                        } else {
-                                                            println!("Successfully migrated legacy note: {:?}", path);
-                                                        }
-                                                        notes.push(note);
-                                                    }
-                                                    Err(e) => println!("Failed to encrypt legacy note {:?}: {}", path, e),
-                                                }
-                                            }
-                                            Err(e) => println!("Failed to parse note file {:?}: {}", path, e),
-                                        }
-                                    }
-                                }
-                            }
-                            Err(e) => println!("Failed to read note file {:?}: {}", path, e),
-                        }
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            return Ok(LoadNotesResult {
-                success: false,
-                notes: Vec::new(),
-                error: Some(format!("Failed to read notes directory: {}", e)),
-            });
+
+    // Decrypt all notes
+    for encrypted_note in encrypted_notes {
+        let encrypted_note_for_decrypt = EncryptedNote {
+            id: encrypted_note.id,
+            encrypted_data: encrypted_note.encrypted_data,
+            nonce: encrypted_note.nonce,
+            created_at: encrypted_note.created_at,
+        };
+
+        match decrypt_note(&encrypted_note_for_decrypt, &dek) {
+            Ok(note) => notes.push(note),
+            Err(e) => println!("Failed to decrypt note: {}", e),
         }
     }
-    
-    // Sort notes by creation date (newest first)
-    notes.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-    
-    println!("Loaded {} notes", notes.len());
-    
+
+    println!("Loaded {} notes from database", notes.len());
+
     Ok(LoadNotesResult {
         success: true,
         notes,
@@ -977,17 +927,17 @@ async fn load_patient_notes(app: tauri::AppHandle, password: String) -> Result<L
 #[tauri::command]
 async fn delete_patient_note(app: tauri::AppHandle, note_id: String) -> Result<bool, String> {
     println!("Deleting patient note: {}", note_id);
-    
-    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    let note_file = app_data_dir.join("notes").join(format!("{}.json", note_id));
-    
-    if note_file.exists() {
-        fs::remove_file(&note_file)
-            .map_err(|e| format!("Failed to delete note file: {}", e))?;
-        println!("Note deleted successfully");
+
+    let conn = get_db_connection(&app)?;
+
+    let deleted = delete_note_by_id(&conn, &note_id)
+        .map_err(|e| format!("Failed to delete note from database: {}", e))?;
+
+    if deleted {
+        println!("Note deleted successfully from database");
         Ok(true)
     } else {
-        Err(format!("Note file not found: {}", note_id))
+        Err(format!("Note not found in database: {}", note_id))
     }
 }
 
@@ -995,21 +945,30 @@ async fn delete_patient_note(app: tauri::AppHandle, note_id: String) -> Result<b
 
 #[tauri::command]
 async fn check_auth_status(app: tauri::AppHandle) -> Result<AuthResponse, String> {
-    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    let auth_path = app_data_dir.join("auth.json");
-    
-    if !check_auth_file_exists(&auth_path) {
+    let conn = match get_db_connection(&app) {
+        Ok(conn) => conn,
+        Err(e) => {
+            return Ok(AuthResponse {
+                success: false,
+                message: format!("Failed to connect to database: {}", e),
+                user: None,
+            });
+        }
+    };
+
+    // Check if auth exists in database
+    if !check_auth_exists_in_db(&conn) {
         return Ok(AuthResponse {
             success: false,
-            message: "No authentication file found".to_string(),
+            message: "No authentication data found".to_string(),
             user: None,
         });
     }
-    
-    match load_auth_file(&auth_path) {
+
+    match load_auth_from_db(&conn) {
         Ok(auth_file) => Ok(AuthResponse {
             success: true,
-            message: "Authentication file exists".to_string(),
+            message: "Authentication data exists".to_string(),
             user: Some(UserInfo {
                 user_id: auth_file.user_id,
                 username: auth_file.user.username,
@@ -1017,7 +976,7 @@ async fn check_auth_status(app: tauri::AppHandle) -> Result<AuthResponse, String
         }),
         Err(e) => Ok(AuthResponse {
             success: false,
-            message: format!("Failed to load auth file: {}", e),
+            message: format!("Failed to load auth from database: {}", e),
             user: None,
         }),
     }
@@ -1028,21 +987,20 @@ async fn create_user_account_command(
     app: tauri::AppHandle,
     request: CreateUserRequest,
 ) -> Result<AuthResponse, String> {
-    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    let auth_path = app_data_dir.join("auth.json");
-    
-    // Check if auth file already exists
-    if check_auth_file_exists(&auth_path) {
+    let conn = get_db_connection(&app)?;
+
+    // Check if auth already exists in database
+    if check_auth_exists_in_db(&conn) {
         return Ok(AuthResponse {
             success: false,
             message: "User account already exists".to_string(),
             user: None,
         });
     }
-    
+
     match create_user_account(request.username.clone(), request.password) {
         Ok(auth_file) => {
-            match save_auth_file(&auth_path, &auth_file) {
+            match save_auth_to_db(&conn, &auth_file) {
                 Ok(_) => Ok(AuthResponse {
                     success: true,
                     message: "User account created successfully".to_string(),
@@ -1053,7 +1011,7 @@ async fn create_user_account_command(
                 }),
                 Err(e) => Ok(AuthResponse {
                     success: false,
-                    message: format!("Failed to save auth file: {}", e),
+                    message: format!("Failed to save auth to database: {}", e),
                     user: None,
                 }),
             }
@@ -1071,18 +1029,17 @@ async fn authenticate_user_command(
     app: tauri::AppHandle,
     request: AuthenticateRequest,
 ) -> Result<AuthResponse, String> {
-    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    let auth_path = app_data_dir.join("auth.json");
-    
-    if !check_auth_file_exists(&auth_path) {
+    let conn = get_db_connection(&app)?;
+
+    if !check_auth_exists_in_db(&conn) {
         return Ok(AuthResponse {
             success: false,
-            message: "No authentication file found".to_string(),
+            message: "No authentication data found".to_string(),
             user: None,
         });
     }
-    
-    match load_auth_file(&auth_path) {
+
+    match load_auth_from_db(&conn) {
         Ok(auth_file) => {
             match authenticate_user(&auth_file, &request.password) {
                 Ok(true) => Ok(AuthResponse {
@@ -1107,7 +1064,7 @@ async fn authenticate_user_command(
         }
         Err(e) => Ok(AuthResponse {
             success: false,
-            message: format!("Failed to load auth file: {}", e),
+            message: format!("Failed to load auth from database: {}", e),
             user: None,
         }),
     }
@@ -1115,18 +1072,17 @@ async fn authenticate_user_command(
 
 #[tauri::command]
 async fn get_user_info_command(app: tauri::AppHandle) -> Result<AuthResponse, String> {
-    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    let auth_path = app_data_dir.join("auth.json");
+    let conn = get_db_connection(&app)?;
 
-    if !check_auth_file_exists(&auth_path) {
+    if !check_auth_exists_in_db(&conn) {
         return Ok(AuthResponse {
             success: false,
-            message: "No authentication file found".to_string(),
+            message: "No authentication data found".to_string(),
             user: None,
         });
     }
 
-    match load_auth_file(&auth_path) {
+    match load_auth_from_db(&conn) {
         Ok(auth_file) => Ok(AuthResponse {
             success: true,
             message: "User info retrieved".to_string(),
@@ -1137,7 +1093,7 @@ async fn get_user_info_command(app: tauri::AppHandle) -> Result<AuthResponse, St
         }),
         Err(e) => Ok(AuthResponse {
             success: false,
-            message: format!("Failed to load auth file: {}", e),
+            message: format!("Failed to load auth from database: {}", e),
             user: None,
         }),
     }

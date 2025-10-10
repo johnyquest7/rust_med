@@ -9,6 +9,7 @@ use rand::Rng;
 use std::fs;
 use chrono::Utc;
 use base64::{Engine as _, engine::general_purpose};
+use rusqlite::Connection;
 
 /// Authentication file structure matching the JSON schema
 #[derive(Debug, Serialize, Deserialize)]
@@ -133,27 +134,9 @@ pub fn get_auth_file_path() -> PathBuf {
 }
 
 
-/// Check if the auth file exists
-pub fn check_auth_file_exists(auth_path: &PathBuf) -> bool {
-    auth_path.exists()
-}
 
-/// Load and parse the auth file
-pub fn load_auth_file(auth_path: &PathBuf) -> AuthResult<AuthFile> {
-    if !auth_path.exists() {
-        return Err(AuthError::FileSystem("Auth file does not exist".to_string()));
-    }
-
-    let content = fs::read_to_string(auth_path)
-        .map_err(|e| AuthError::FileSystem(format!("Failed to read auth file: {}", e)))?;
-
-    let auth_file: AuthFile = serde_json::from_str(&content)
-        .map_err(|e| AuthError::Serialization(format!("Failed to parse auth file: {}", e)))?;
-
-    Ok(auth_file)
-}
-
-/// Save the auth file to disk
+/// Save the auth file to disk (deprecated - use save_auth_to_db instead)
+#[allow(dead_code)]
 pub fn save_auth_file(auth_path: &PathBuf, auth_file: &AuthFile) -> AuthResult<()> {
     let content = serde_json::to_string_pretty(auth_file)
         .map_err(|e| AuthError::Serialization(format!("Failed to serialize auth file: {}", e)))?;
@@ -357,4 +340,72 @@ pub fn decrypt_data(ciphertext: &str, dek: &[u8], nonce: &str) -> AuthResult<Str
 
     String::from_utf8(plaintext)
         .map_err(|e| AuthError::Cryptographic(format!("Invalid UTF-8 in decrypted data: {}", e)))
+}
+
+// Database-compatible functions
+
+/// Convert AuthFile to database-compatible AuthData
+pub fn auth_file_to_db_data(auth_file: &AuthFile) -> crate::db::AuthData {
+    crate::db::AuthData {
+        version: auth_file.version,
+        user_id: auth_file.user_id.clone(),
+        username: auth_file.user.username.clone(),
+        kdf_algorithm: auth_file.kdf.algorithm.clone(),
+        kdf_salt: auth_file.kdf.salt.clone(),
+        kdf_memory_kib: auth_file.kdf.params.memory_kib,
+        kdf_iterations: auth_file.kdf.params.iterations,
+        kdf_parallelism: auth_file.kdf.params.parallelism,
+        wrapped_dek_algorithm: auth_file.wrapped_dek.algorithm.clone(),
+        wrapped_dek_nonce: auth_file.wrapped_dek.nonce.clone(),
+        wrapped_dek_ciphertext: auth_file.wrapped_dek.ciphertext.clone(),
+        created_at: auth_file.created_at.clone(),
+        last_password_change: auth_file.last_password_change.clone(),
+    }
+}
+
+/// Convert database AuthData to AuthFile
+pub fn db_data_to_auth_file(auth_data: &crate::db::AuthData) -> AuthFile {
+    AuthFile {
+        version: auth_data.version,
+        user_id: auth_data.user_id.clone(),
+        kdf: KdfParams {
+            algorithm: auth_data.kdf_algorithm.clone(),
+            salt: auth_data.kdf_salt.clone(),
+            params: KdfAlgorithmParams {
+                memory_kib: auth_data.kdf_memory_kib,
+                iterations: auth_data.kdf_iterations,
+                parallelism: auth_data.kdf_parallelism,
+            },
+        },
+        user: User {
+            username: auth_data.username.clone(),
+        },
+        wrapped_dek: WrappedDek {
+            algorithm: auth_data.wrapped_dek_algorithm.clone(),
+            nonce: auth_data.wrapped_dek_nonce.clone(),
+            ciphertext: auth_data.wrapped_dek_ciphertext.clone(),
+            tag: None,
+        },
+        created_at: auth_data.created_at.clone(),
+        last_password_change: auth_data.last_password_change.clone(),
+    }
+}
+
+/// Save auth file to database
+pub fn save_auth_to_db(conn: &Connection, auth_file: &AuthFile) -> AuthResult<()> {
+    let auth_data = auth_file_to_db_data(auth_file);
+    crate::db::save_auth_data(conn, &auth_data)
+        .map_err(|e| AuthError::FileSystem(format!("Failed to save auth data to database: {}", e)))
+}
+
+/// Load auth file from database
+pub fn load_auth_from_db(conn: &Connection) -> AuthResult<AuthFile> {
+    let auth_data = crate::db::load_auth_data(conn)
+        .map_err(|e| AuthError::FileSystem(format!("Failed to load auth data from database: {}", e)))?;
+    Ok(db_data_to_auth_file(&auth_data))
+}
+
+/// Check if auth exists in database
+pub fn check_auth_exists_in_db(conn: &Connection) -> bool {
+    crate::db::auth_data_exists(conn).unwrap_or(false)
 }

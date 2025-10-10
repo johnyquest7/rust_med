@@ -194,7 +194,7 @@
 
 <!-- Transcript Dialog -->
 <Dialog.Root bind:open={isTranscriptOpen}>
-  <Dialog.Content class="max-h-[80vh] max-w-[600px]">
+  <Dialog.Content class="max-h-[80vh] max-w-[900px]">
     <Dialog.Header>
       <Dialog.Title>Transcript</Dialog.Title>
     </Dialog.Header>

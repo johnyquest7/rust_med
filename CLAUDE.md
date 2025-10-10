@@ -161,7 +161,13 @@ Core files in `src-tauri/src/`:
    - AES-256-GCM encryption for patient notes
    - No passwords stored, only password hashes for DEK unwrapping
 
-3. **commands.rs** - Alternative recording implementation (appears unused)
+3. **db.rs** - SQLite database operations
+   - Database initialization and schema management
+   - CRUD operations for authentication data
+   - CRUD operations for encrypted patient notes
+   - All data stored in SQLite for reliability and performance
+
+4. **commands.rs** - Alternative recording implementation (appears unused)
    - References `tauri-plugin-mic-recorder` (not in current Cargo.toml)
    - Likely legacy code from earlier architecture iteration
 
@@ -186,8 +192,8 @@ Core files in `src-tauri/src/`:
 
 4. **Storage**:
    - Patient notes encrypted with DEK before saving
-   - Stored as JSON files in `{app_local_data_dir}/notes/`
-   - Legacy unencrypted notes auto-migrated on load
+   - Stored in SQLite database (`medical_notes.db`)
+   - All data persists in `{app_local_data_dir}/`
 
 ### Key Implementation Details
 
@@ -209,8 +215,7 @@ Core files in `src-tauri/src/`:
 ### Data Storage Locations
 
 - **App Data**: `~/Library/Application Support/com.medical.notegenerator/` (macOS)
-- **Authentication**: `auth.json` in app data directory
-- **Patient Notes**: `notes/*.json` in app data directory (encrypted)
+- **Database**: `medical_notes.db` SQLite database (contains auth and encrypted notes)
 - **Audio Files**: Temporary WAV files in app data directory
 
 ### Important Patterns

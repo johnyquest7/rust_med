@@ -21,6 +21,7 @@ base64 = "0.22"
 rand = "0.8"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 thiserror = "1.0"
+rusqlite = { version = "0.32", features = ["bundled", "chrono"] }
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
