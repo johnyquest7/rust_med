@@ -214,7 +214,7 @@
 
 <!-- Note Detail Dialog -->
 <Dialog.Root bind:open={isDialogOpen}>
-  <Dialog.Content class="flex max-h-[90vh] w-[95vw] max-w-[900px] flex-col overflow-hidden">
+  <Dialog.Content class="flex max-h-[90vh] w-[95vw] !max-w-[900px] flex-col overflow-hidden">
     <Dialog.Header>
       <Dialog.Title>
         {selectedNote?.firstName} {selectedNote?.lastName}

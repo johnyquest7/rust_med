@@ -33,22 +33,46 @@
       plan: ''
     };
 
-    // Common patterns for SOAP section headers
-    // More precise patterns that stop at the next section header
-    // Note: "O:" can also be "R:" (for Review/Results) in some SOAP variations
+    // SOAP section patterns - each pattern stops at the next section header
     const patterns = {
-      subjective: /(?:^|\n)(?:S:|Subjective:|SUBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:O:|R:|Objective:|OBJECTIVE:))/i,
-      objective: /(?:^|\n)(?:O:|R:|Objective:|OBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:A:|Assessment:|ASSESSMENT:))/i,
+      subjective: /(?:^|\n)(?:S:|Subjective:|SUBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:O:|Objective:|OBJECTIVE:))/i,
+      review: /(?:^|\n)(?:R:|Review:|REVIEW:?)\s*([\s\S]*?)(?=\n\s*(?:O:|Objective:|OBJECTIVE:))/i,
+      objective: /(?:^|\n)(?:O:|Objective:|OBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:A:|Assessment:|ASSESSMENT:))/i,
       assessment: /(?:^|\n)(?:A:|Assessment:|ASSESSMENT:?)\s*([\s\S]*?)(?=\n\s*(?:P:|Plan:|PLAN:))/i,
       plan: /(?:^|\n)(?:P:|Plan:|PLAN:?)\s*([\s\S]*?)$/i
     };
 
-    // Try to extract each section
-    for (const [key, pattern] of Object.entries(patterns)) {
-      const match = medicalNote.match(pattern);
-      if (match && match[1]) {
-        sections[key as keyof SOAPSections] = match[1].trim();
+    // Extract subjective section
+    const subjectiveMatch = medicalNote.match(patterns.subjective);
+    if (subjectiveMatch && subjectiveMatch[1]) {
+      sections.subjective = subjectiveMatch[1].trim();
+    }
+
+    // Extract review section and merge into subjective if present
+    const reviewMatch = medicalNote.match(patterns.review);
+    if (reviewMatch && reviewMatch[1]) {
+      const reviewContent = reviewMatch[1].trim();
+      if (sections.subjective) {
+        sections.subjective = `${sections.subjective}\n\nReview:\n${reviewContent}`;
+      } else {
+        sections.subjective = `Review:\n${reviewContent}`;
       }
+    }
+
+    // Extract remaining sections
+    const objectiveMatch = medicalNote.match(patterns.objective);
+    if (objectiveMatch && objectiveMatch[1]) {
+      sections.objective = objectiveMatch[1].trim();
+    }
+
+    const assessmentMatch = medicalNote.match(patterns.assessment);
+    if (assessmentMatch && assessmentMatch[1]) {
+      sections.assessment = assessmentMatch[1].trim();
+    }
+
+    const planMatch = medicalNote.match(patterns.plan);
+    if (planMatch && planMatch[1]) {
+      sections.plan = planMatch[1].trim();
     }
 
     // Return null if no sections were found
@@ -194,7 +218,7 @@
 
 <!-- Transcript Dialog -->
 <Dialog.Root bind:open={isTranscriptOpen}>
-  <Dialog.Content class="max-h-[80vh] max-w-[900px]">
+  <Dialog.Content class="max-h-[80vh] !max-w-[900px] sm:!max-w-[900px]">
     <Dialog.Header>
       <Dialog.Title>Transcript</Dialog.Title>
     </Dialog.Header>

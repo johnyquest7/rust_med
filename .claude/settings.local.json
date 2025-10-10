@@ -12,7 +12,8 @@
       "Bash(npm install:*)",
       "Bash(npx svelte-kit sync)",
       "Bash(cargo:*)",
-      "Read(//Users/alexledger/Library/Application Support/CleanShot/media/media_p0wLe6s3Vv/**)"
+      "Read(//Users/alexledger/Library/Application Support/CleanShot/media/media_p0wLe6s3Vv/**)",
+      "Bash(node:*)"
     ],
     "deny": []
   }
