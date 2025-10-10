@@ -21,12 +21,15 @@
   let isDeleteDialogOpen = $state(false);
   let isTranscriptOpen = $state(false);
   let noteToDelete = $state<TauriNote | null>(null);
+  let isLoading = $state(true);
 
   async function loadNotes() {
+    isLoading = true;
     const result = await tauriService.loadNotes();
     if (result.success) {
       notes = result.notes;
     }
+    isLoading = false;
   }
 
   function confirmDelete(note: TauriNote) {
@@ -80,7 +83,13 @@
 <div class="container mx-auto max-w-6xl space-y-6 px-4 py-8">
   <h2 class="text-2xl font-bold">Medical Notes</h2>
 
-  {#if notes.length === 0}
+  {#if isLoading}
+    <Card>
+      <CardContent class="flex flex-col items-center justify-center py-12">
+        <p class="text-muted-foreground">Loading...</p>
+      </CardContent>
+    </Card>
+  {:else if notes.length === 0}
     <Card>
       <CardContent class="flex flex-col items-center justify-center py-12">
         <p class="text-muted-foreground">No medical notes found.</p>
