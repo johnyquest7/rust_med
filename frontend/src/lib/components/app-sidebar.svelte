@@ -27,6 +27,11 @@
       title: 'Medical Notes',
       url: '/notes',
       icon: FileText
+    },
+    {
+      title: 'Profile',
+      url: '/profile',
+      icon: User
     }
   ];
 
