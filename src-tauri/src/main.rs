@@ -495,7 +495,7 @@ async fn generate_medical_note(
             "<|begin_of_text|><|start_header_id|>user<|end_header_id|>
 You are an expert medical professor assisting in the creation of medically accurate SOAP notes.  
 Create a Medical SOAP note from the transcript, following these guidelines:\n    
-Correct any medcal terminology errors that might have happened during transcription before generating the SOAP note.\n
+Correct any medical terminology errors that might have happened during transcription before generating the SOAP note.\n
 S (Subjective): Summarize the patient's reported symptoms, including chief complaint and relevant history.
 Rely on the patient's statements as the primary source and ensure standardized terminology.\n    
 O (Objective): Include objective findings in the transcripts such as vital signs, physical exam findings, lab results, and imaging.\n    
