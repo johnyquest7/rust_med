@@ -468,6 +468,9 @@
       return;
     }
 
+    let audioPath: string | null = null;
+    let audioFilename: string | null = null;
+
     try {
       isProcessing = true;
       processingSuccess = false;
@@ -485,8 +488,14 @@
       const appDataDir = await tauriService.appLocalDataDir();
       const now = new Date();
       const dateStr = now.toISOString().replace(/[:.]/g, '-'); // for safe filename
-      const audioFilename = `audio-${dateStr}.wav`;
-      const audioPath = await tauriService.joinPath(appDataDir, audioFilename);
+      audioFilename = `audio-${dateStr}.wav`;
+      audioPath = await tauriService.joinPath(appDataDir, audioFilename);
+
+      // Convert blob to Uint8Array and write to disk
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      await tauriService.writeFile(audioPath, uint8Array);
+      console.log('Audio file written to:', audioPath);
 
       console.log('Transcribing audio...');
       const transcriptionResult = await tauriService.transcribeAudio(audioPath);
@@ -529,18 +538,6 @@
       processingSuccess = true;
       statusType = 'success';
 
-      // Delete the audio file after successful processing
-      try {
-        if ("debug.wav" !== audioFilename) {
-          // TODO: we can remove this later
-          await tauriService.deleteAudioFile(audioPath);
-          console.log('Audio file deleted successfully');
-        }
-      } catch (error) {
-        console.warn('Failed to delete audio file:', error);
-        // Don't fail the whole process if audio deletion fails
-      }
-
       // Show success toast
       toast.success('Medical note created successfully!', {
         description: `Note saved for ${formData.firstName} ${formData.lastName}`
@@ -572,6 +569,17 @@
       processingStage = null;
       processingSuccess = false;
       setTimeout(() => (processingError = ''), 5000);
+    } finally {
+      // Always delete the audio file for security, regardless of success or failure
+      if (audioPath && audioFilename && audioFilename !== 'debug.wav') {
+        try {
+          await tauriService.deleteAudioFile(audioPath);
+          console.log('Audio file deleted successfully');
+        } catch (error) {
+          console.error('Failed to delete audio file:', error);
+          // Log the error but don't throw - the processing is already complete
+        }
+      }
     }
   }
 
