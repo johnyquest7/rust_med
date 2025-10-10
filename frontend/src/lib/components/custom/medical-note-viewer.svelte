@@ -1,17 +1,13 @@
 <script lang="ts">
   import type { TauriNote } from '$lib/types';
   import { Textarea } from '$lib/components/ui/textarea';
-  import { Button } from '$lib/components/ui/button';
   import * as Tabs from '$lib/components/ui/tabs';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import FileText from '@lucide/svelte/icons/file-text';
 
   interface Props {
     note: TauriNote;
   }
 
   let { note }: Props = $props();
-  let isTranscriptOpen = $state(false);
 
   interface SOAPSections {
     subjective: string;
@@ -35,7 +31,7 @@
 
     // SOAP section patterns - each pattern stops at the next section header
     const patterns = {
-      subjective: /(?:^|\n)(?:S:|Subjective:|SUBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:O:|Objective:|OBJECTIVE:))/i,
+      subjective: /(?:^|\n)(?:S:|Subjective:|SUBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:R:|Review:|REVIEW:|O:|Objective:|OBJECTIVE:))/i,
       review: /(?:^|\n)(?:R:|Review:|REVIEW:?)\s*([\s\S]*?)(?=\n\s*(?:O:|Objective:|OBJECTIVE:))/i,
       objective: /(?:^|\n)(?:O:|Objective:|OBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:A:|Assessment:|ASSESSMENT:))/i,
       assessment: /(?:^|\n)(?:A:|Assessment:|ASSESSMENT:?)\s*([\s\S]*?)(?=\n\s*(?:P:|Plan:|PLAN:))/i,
@@ -203,30 +199,4 @@
     {/if}
   </div>
 
-  <!-- Transcript Button -->
-  <div class="flex justify-center pt-2">
-    <Button
-      variant="outline"
-      onclick={() => (isTranscriptOpen = true)}
-      class="flex items-center gap-2"
-    >
-      <FileText class="h-4 w-4" />
-      View Full Transcript
-    </Button>
-  </div>
 </div>
-
-<!-- Transcript Dialog -->
-<Dialog.Root bind:open={isTranscriptOpen}>
-  <Dialog.Content class="max-h-[80vh] !max-w-[900px] sm:!max-w-[900px]">
-    <Dialog.Header>
-      <Dialog.Title>Transcript</Dialog.Title>
-    </Dialog.Header>
-    <div class="mt-4 max-h-[60vh] overflow-y-auto">
-      <Textarea readonly value={note.transcript} class="min-h-[400px] resize-none" />
-    </div>
-    <Dialog.Footer>
-      <Button variant="outline" onclick={() => (isTranscriptOpen = false)}>Close</Button>
-    </Dialog.Footer>
-  </Dialog.Content>
-</Dialog.Root>

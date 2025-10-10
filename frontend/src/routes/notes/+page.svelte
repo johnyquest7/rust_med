@@ -3,6 +3,7 @@
   import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
+  import { Textarea } from '$lib/components/ui/textarea';
   import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/custom/table';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -18,6 +19,7 @@
   let selectedNote = $state<TauriNote | null>(null);
   let isDialogOpen = $state(false);
   let isDeleteDialogOpen = $state(false);
+  let isTranscriptOpen = $state(false);
   let noteToDelete = $state<TauriNote | null>(null);
 
   async function loadNotes() {
@@ -231,14 +233,24 @@
     {/if}
 
     <Dialog.Footer class="flex justify-between">
-      <Button
-        variant="outline"
-        onclick={() => confirmDelete(selectedNote!)}
-        class="flex items-center gap-2"
-      >
-        <Trash2 class="h-4 w-4" />
-        Delete Note
-      </Button>
+      <div class="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onclick={() => (isTranscriptOpen = true)}
+          class="flex items-center gap-2"
+        >
+          <FileText class="h-4 w-4" />
+          View Transcript
+        </Button>
+        <Button
+          variant="outline"
+          onclick={() => confirmDelete(selectedNote!)}
+          class="flex items-center gap-2"
+        >
+          <Trash2 class="h-4 w-4" />
+          Delete Note
+        </Button>
+      </div>
       <Button variant="outline" onclick={closeDialog}>Close</Button>
     </Dialog.Footer>
   </Dialog.Content>
@@ -269,3 +281,18 @@
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>
+
+<!-- Transcript Dialog -->
+<Dialog.Root bind:open={isTranscriptOpen}>
+  <Dialog.Content class="max-h-[80vh] !max-w-[900px] sm:!max-w-[900px]">
+    <Dialog.Header>
+      <Dialog.Title>Transcript</Dialog.Title>
+    </Dialog.Header>
+    <div class="mt-4 max-h-[60vh] overflow-y-auto">
+      <Textarea readonly value={selectedNote?.transcript || ''} class="min-h-[400px] resize-none" />
+    </div>
+    <Dialog.Footer>
+      <Button variant="outline" onclick={() => (isTranscriptOpen = false)}>Close</Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
