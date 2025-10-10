@@ -15,9 +15,11 @@ use rusqlite::Connection;
 
 mod auth;
 mod db;
+mod downloads;
 
 use auth::*;
 use db::*;
+use downloads::*;
 
 /// Helper to get database connection
 fn get_db_connection(app: &tauri::AppHandle) -> Result<Connection, String> {
@@ -197,25 +199,22 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
         });
     }
     
-    let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
-    println!("Resource directory: {:?}", resource_dir);
-    
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    println!("App data directory: {:?}", app_data_dir);
+
     // Determine the correct whisperfile executable
     let whisperfile_name = if cfg!(target_os = "windows") {
         "whisperfile.exe"
     } else {
         "whisperfile"
     };
-    
+
     // Try different possible locations for the whisperfile
     let whisperfile_paths = [
-        // Development paths (relative to project root)
+        // Production: app data directory (where setup wizard downloads them)
+        app_data_dir.join("binaries").join(whisperfile_name),
+        // Development: relative to project root
         PathBuf::from("binaries").join(whisperfile_name),
-        PathBuf::from("./binaries").join(whisperfile_name),
-        PathBuf::from("../binaries").join(whisperfile_name),
-        // Production paths (in resources)
-        resource_dir.join(whisperfile_name),
-        resource_dir.join("binaries").join(whisperfile_name),
     ];
     
     let mut whisperfile_path = None;
@@ -246,20 +245,17 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
     // Find the model file
     let model_names = [
         "whisper-tiny.en.gguf",
-        "ggml-tiny.en.bin", 
+        "ggml-tiny.en.bin",
         "whisper-tiny.en.bin",
         "whisper-small.en.gguf",
         "ggml-small.en.bin"
     ];
-    
+
     let model_paths = [
-        // Development paths
+        // Production: app data directory (where setup wizard downloads them)
+        app_data_dir.join("binaries").join("models"),
+        // Development: relative to project root
         PathBuf::from("binaries").join("models"),
-        PathBuf::from("./binaries").join("models"),
-        PathBuf::from("../binaries").join("models"),
-        // Production paths
-        resource_dir.join("models"),
-        resource_dir.join("binaries").join("models"),
     ];
     
     let mut model_path = None;
@@ -392,15 +388,15 @@ async fn generate_medical_note(
     let note_type_display = if note_type == "soap" { "SOAP" } else { "Full" };
     app.emit("note-generation-progress", format!("Generating {} medical note...", note_type_display)).ok();
     
-    let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
-    
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+
     // Determine the correct llamafile executable
     let llamafile_name = if cfg!(target_os = "windows") {
         "llamafile.exe"
     } else {
         "llamafile"
     };
-    
+
     // Get the current working directory to build absolute paths
     let current_dir = std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
     let project_root = if current_dir.ends_with("src-tauri") {
@@ -408,14 +404,13 @@ async fn generate_medical_note(
     } else {
         current_dir
     };
-    
+
     // Try different possible locations for the llamafile with absolute paths
     let llamafile_paths = [
-        // Development paths (absolute from project root)
+        // Production: app data directory (where setup wizard downloads them)
+        app_data_dir.join("binaries").join(llamafile_name),
+        // Development: absolute from project root
         project_root.join("binaries").join(llamafile_name),
-        // Production paths (in resources)
-        resource_dir.join(llamafile_name),
-        resource_dir.join("binaries").join(llamafile_name),
     ];
     
     let mut llamafile_path = None;
@@ -449,12 +444,10 @@ async fn generate_medical_note(
     ];
     
     let model_paths = [
-        // Absolute paths from project root
+        // Production: app data directory (where setup wizard downloads them)
+        app_data_dir.join("binaries").join("models"),
+        // Development: absolute paths from project root
         project_root.join("binaries").join("models"),
-        project_root.join("binaries"),  // In case models are directly in binaries
-        // Try resource dir paths
-        resource_dir.join("binaries").join("models"),
-        resource_dir.join("models"),
     ];
     
     let mut model_path = None;
@@ -1116,6 +1109,42 @@ async fn delete_audio_file(audio_path: String) -> Result<bool, String> {
     }
 }
 
+// Setup and Download Commands
+
+#[tauri::command]
+async fn check_setup_status(app: tauri::AppHandle) -> Result<bool, String> {
+    let conn = get_db_connection(&app)?;
+    is_setup_completed(&conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_required_models_list() -> Result<Vec<ModelDownloadInfo>, String> {
+    Ok(get_required_models())
+}
+
+#[tauri::command]
+async fn check_models_downloaded(app: tauri::AppHandle) -> Result<Vec<(ModelDownloadInfo, bool)>, String> {
+    check_models_exist(&app).await
+}
+
+#[tauri::command]
+async fn download_model_file(
+    app: tauri::AppHandle,
+    model: ModelDownloadInfo,
+) -> Result<String, String> {
+    match download_model(&app, model).await {
+        Ok(path) => Ok(path.to_string_lossy().to_string()),
+        Err(e) => Err(format!("Download failed: {}", e)),
+    }
+}
+
+#[tauri::command]
+async fn complete_setup(app: tauri::AppHandle) -> Result<bool, String> {
+    let conn = get_db_connection(&app)?;
+    mark_setup_completed(&conn).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -1133,7 +1162,12 @@ fn main() {
             check_auth_status,
             create_user_account_command,
             authenticate_user_command,
-            get_user_info_command
+            get_user_info_command,
+            check_setup_status,
+            get_required_models_list,
+            check_models_downloaded,
+            download_model_file,
+            complete_setup
         ])
         .setup(|app| {
             let resource_dir = app.path().resource_dir().expect("failed to get resource directory");

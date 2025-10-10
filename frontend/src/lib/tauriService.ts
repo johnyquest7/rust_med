@@ -152,6 +152,27 @@ class TauriService {
   async deleteAudioFile(audioPath: string): Promise<boolean> {
     return await this.ensureTauri().core.invoke('delete_audio_file', { audioPath });
   }
+
+  // Setup wizard methods
+  async getRequiredModelsList(): Promise<any[]> {
+    return await this.ensureTauri().core.invoke('get_required_models_list');
+  }
+
+  async checkModelsDownloaded(): Promise<[any, boolean][]> {
+    return await this.ensureTauri().core.invoke('check_models_downloaded');
+  }
+
+  async downloadModelFile(model: any): Promise<void> {
+    return await this.ensureTauri().core.invoke('download_model_file', { model });
+  }
+
+  async completeSetup(): Promise<void> {
+    return await this.ensureTauri().core.invoke('complete_setup');
+  }
+
+  async listen<T>(event: string, callback: (data: { payload: T }) => void): Promise<void> {
+    return await this.ensureTauri().event.listen(event, callback);
+  }
 }
 
 // Create a singleton instance

@@ -61,6 +61,16 @@ pub fn initialize_database(db_path: &PathBuf) -> DbResult<Connection> {
         [],
     )?;
 
+    // Create setup status table
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS setup_status (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            setup_completed INTEGER NOT NULL DEFAULT 0,
+            completed_at TEXT
+        )",
+        [],
+    )?;
+
     Ok(conn)
 }
 
@@ -244,4 +254,23 @@ pub fn note_exists(conn: &Connection, note_id: &str) -> DbResult<bool> {
     let mut stmt = conn.prepare("SELECT COUNT(*) FROM patient_notes WHERE id = ?1")?;
     let count: i64 = stmt.query_row([note_id], |row| row.get(0))?;
     Ok(count > 0)
+}
+
+/// Check if initial setup is completed
+pub fn is_setup_completed(conn: &Connection) -> DbResult<bool> {
+    let mut stmt = conn.prepare("SELECT setup_completed FROM setup_status WHERE id = 1")?;
+    let completed: i64 = stmt.query_row([], |row| row.get(0))
+        .unwrap_or(0);
+    Ok(completed == 1)
+}
+
+/// Mark setup as completed
+pub fn mark_setup_completed(conn: &Connection) -> DbResult<()> {
+    let now = chrono::Local::now().to_rfc3339();
+    conn.execute(
+        "INSERT OR REPLACE INTO setup_status (id, setup_completed, completed_at)
+         VALUES (1, 1, ?1)",
+        params![now],
+    )?;
+    Ok(())
 }

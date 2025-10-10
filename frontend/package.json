@@ -50,6 +50,7 @@
     "vite": "^7.0.4"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.8.0",
     "zod": "^3.25.76"
   }
 }

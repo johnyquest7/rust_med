@@ -3,6 +3,7 @@
   import AppSidebar from '$lib/components/app-sidebar.svelte';
   import LoginForm from '$lib/components/custom/login-form.svelte';
   import RegisterForm from '$lib/components/custom/register-form.svelte';
+  import SetupWizard from '$lib/components/custom/setup-wizard.svelte';
   import { useAuth } from '$lib/hooks/use-auth.svelte.js';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
@@ -17,14 +18,30 @@
   let showRegistration = $state(false);
   let authFileExists = $state(false);
   let isLoading = $state(true);
+  let setupCompleted = $state(false);
+  let checkingSetup = $state(true);
 
-  // Check authentication status on mount
+  // Check authentication status and setup status on mount
   onMount(async () => {
     try {
       if (!browser || typeof (window as any).__TAURI__ === 'undefined') {
         isLoading = false;
+        checkingSetup = false;
         return;
       }
+
+      // Check setup status first
+      try {
+        const setupStatus = await (window as any).__TAURI__.core.invoke('check_setup_status');
+        setupCompleted = setupStatus;
+      } catch (error) {
+        console.error('Failed to check setup status:', error);
+        // If setup check fails, assume setup is not completed
+        setupCompleted = false;
+      }
+      checkingSetup = false;
+
+      // Then check auth status
       const response: AuthResponse = await (window as any).__TAURI__.core.invoke('check_auth_status');
       authFileExists = response.success;
 
@@ -57,7 +74,7 @@
   }
 </script>
 
-{#if isLoading}
+{#if isLoading || checkingSetup}
   <!-- Loading state -->
   <div class="flex min-h-screen items-center justify-center">
     <div class="flex items-center gap-2">
@@ -65,6 +82,9 @@
       <span class="text-lg">Loading...</span>
     </div>
   </div>
+{:else if !setupCompleted}
+  <!-- Setup not completed - show setup wizard -->
+  <SetupWizard />
 {:else if isAuthenticated}
   <!-- Authenticated state - show main app -->
   <Sidebar.Provider>
