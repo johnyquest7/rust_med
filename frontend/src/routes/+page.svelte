@@ -481,9 +481,11 @@
         throw new Error('No audio data recorded');
       }
 
-      // Write the audio to a file using Tauri service
+      // Write the audio to a file using Tauri service with a date-based filename
       const appDataDir = await tauriService.appLocalDataDir();
-      const audioFilename = 'debug.wav';
+      const now = new Date();
+      const dateStr = now.toISOString().replace(/[:.]/g, '-'); // for safe filename
+      const audioFilename = `audio-${dateStr}.wav`;
       const audioPath = await tauriService.joinPath(appDataDir, audioFilename);
 
       console.log('Transcribing audio...');
