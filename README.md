@@ -11,28 +11,32 @@ The following instructions are written for mac and linux, but should be adaptabl
 3. Update rust: `rustup update`
 4. Install the tauri-cli: `cargo install tauri-cli`
 5. Install Node.js and make sure that's set up. See https://nodejs.org/.
-6. Install node dependencies: `npm install`
-7. Download the whisper executable, llama executable, and the med_llama llm weights
+6. Install dependencies:
 
 ```bash
-mkdir -p binaries
-mkdir -p binaries/models
+# Install root dependencies
+npm install
 
-wget https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile
-mv whisper-tiny.en.llamafile binaries/whisperfile
-
-curl -L -o llamafile "https://github.com/Mozilla-Ocho/llamafile/releases/download/0.9.3/llamafile-0.9.3"
-mv llamafile binaries
-
-curl -L -o med_llama.gguf https://huggingface.co/garcianacho/MedLlama-2-7B-GGUF/resolve/main/MedLlama-2-7B.q4_K_S.gguf?download=true
-mv med_llama.gguf binaries/models
-```
-
-Next, set up the frontend (sveltekit) app.
-
-```bash
+# Install frontend dependencies
 cd frontend
 npm install
+cd ..
+```
+
+### AI Models Setup
+
+The application will download required AI models through a built-in setup wizard on first run. No manual download is required for normal use.
+
+**Optional: Manual Development Setup**
+
+If you want to set up models manually for development (to avoid the setup wizard), place them in your app data directory:
+
+```bash
+# macOS/Linux
+mkdir -p ~/Library/Application\ Support/com.medical.notegenerator/binaries/models
+
+# Download models (see CLAUDE.md for specific download commands)
+# Models are NOT stored in the repository
 ```
 
 With that, you're ready to run the application:

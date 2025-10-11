@@ -32,25 +32,38 @@ npm run check        # Type check with svelte-check
 
 ## Initial Setup
 
-The application requires downloading AI binaries before first run:
+The application includes a built-in setup wizard that downloads AI models on first run. For production users, no manual setup is required.
+
+### Development Setup (Optional)
+
+For development, you can optionally download models locally to avoid running the setup wizard:
 
 ```bash
-mkdir -p binaries/models
+# Create app data directory structure
+mkdir -p ~/Library/Application\ Support/com.medical.notegenerator/binaries/models
 
-# Download Whisper model (speech-to-text)
+# Download Whisper executable (speech-to-text)
 wget https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile
-mv whisper-tiny.en.llamafile binaries/whisperfile
-chmod +x binaries/whisperfile
+mv whisper-tiny.en.llamafile ~/Library/Application\ Support/com.medical.notegenerator/binaries/whisperfile
+chmod +x ~/Library/Application\ Support/com.medical.notegenerator/binaries/whisperfile
+
+# Download Whisper model
+curl -L -o whisper-tiny.en.gguf "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin"
+mv whisper-tiny.en.gguf ~/Library/Application\ Support/com.medical.notegenerator/binaries/models/
 
 # Download Llamafile (LLM runtime)
 curl -L -o llamafile "https://github.com/Mozilla-Ocho/llamafile/releases/download/0.9.3/llamafile-0.9.3"
-mv llamafile binaries/
-chmod +x binaries/llamafile
+mv llamafile ~/Library/Application\ Support/com.medical.notegenerator/binaries/
+chmod +x ~/Library/Application\ Support/com.medical.notegenerator/binaries/llamafile
 
-# Download Medical LLaMA model (note generation)
+# Download Medical LLaMA model (note generation, ~3.8GB)
 curl -L -o med_llama.gguf https://huggingface.co/garcianacho/MedLlama-2-7B-GGUF/resolve/main/MedLlama-2-7B.q4_K_S.gguf?download=true
-mv med_llama.gguf binaries/models/
+mv med_llama.gguf ~/Library/Application\ Support/com.medical.notegenerator/binaries/models/
 ```
+
+**Note**: Models are NOT stored in the repository. The application searches for models in:
+1. Production: `~/Library/Application Support/com.medical.notegenerator/binaries/` (macOS)
+2. Development fallback: `binaries/` (project root, gitignored)
 
 ## Architecture
 
@@ -197,7 +210,7 @@ Core files in `src-tauri/src/`:
 
 ### Key Implementation Details
 
-- **Binary Path Resolution**: Checks multiple locations for dev (project root) and prod (resource dir)
+- **Binary Path Resolution**: Checks app data directory first, then project root as fallback (dev only)
 - **Absolute Paths Required**: Llamafile model loading needs canonicalized paths on Windows
 - **Streaming Output**: LLM generation emits real-time events for UI updates
 - **Error Handling**: Comprehensive validation with user-friendly error messages
