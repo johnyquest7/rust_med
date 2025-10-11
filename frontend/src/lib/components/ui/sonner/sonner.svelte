@@ -8,6 +8,18 @@
 <Sonner
 	theme={mode.current}
 	class="toaster group"
-	style="--normal-bg: var(--color-popover); --normal-text: var(--color-popover-foreground); --normal-border: var(--color-border);"
+	toastOptions={{
+		classes: {
+			toast: 'bg-popover text-popover-foreground border-border',
+			title: 'text-popover-foreground font-semibold',
+			description: 'text-popover-foreground/90',
+			actionButton: 'bg-primary text-primary-foreground',
+			cancelButton: 'bg-muted text-muted-foreground',
+			error: 'bg-destructive text-destructive-foreground border-destructive',
+			success: 'bg-primary text-primary-foreground border-primary',
+			warning: 'bg-secondary text-secondary-foreground border-secondary',
+			info: 'bg-popover text-popover-foreground border-border'
+		}
+	}}
 	{...restProps}
 />
