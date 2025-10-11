@@ -9,9 +9,8 @@ The following instructions are written for mac and linux, but should be adaptabl
 1. Install Rust with rustup: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 2. Restart your terminal
 3. Update rust: `rustup update`
-4. Install the tauri-cli: `cargo install tauri-cli`
-5. Install Node.js and make sure that's set up. See https://nodejs.org/.
-6. Install dependencies:
+4. Install Node.js and make sure that's set up. See https://nodejs.org/.
+5. Install dependencies:
 
 ```bash
 # Install root dependencies
@@ -64,6 +63,6 @@ The frontend is a sveltekit app and located at `frontend/`. The app is a typical
 
 The Tauri app uses whatever is in the `frontend/build` directory, so while you could develop as a typical app with `cd frontend && npm run dev`, you can always get live updates in the native Tauri app with `npm run dev` from the root of the repo. The major differences are that functionality may be limited in the web-only version because it doesn't have the rust backend and updates will be slower to take effect in the Tauri version.
 
-## TODOs and Dev notes
+## Dev Installation Notes
 
 - cd "/Users/alexledger/Library/Application Support/com.medical.notegenerator/"
