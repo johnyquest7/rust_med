@@ -387,7 +387,7 @@ main() {
     # install_platform_deps
     # create_directories
     # download_models
-    # TODO: this isn't in the right workign directory so doesn't work when it's all run together
+    # TODO: this isn't in the right working directory so doesn't work when it's all run together
     install_npm_deps
     verify_rust_deps
     set_permissions

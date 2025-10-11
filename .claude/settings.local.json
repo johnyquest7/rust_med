@@ -5,7 +5,16 @@
       "Bash(git add:*)",
       "Bash(git push:*)",
       "Bash(rm:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx shadcn-svelte@latest add:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(npx svelte-kit sync)",
+      "Bash(cargo:*)",
+      "Read(//Users/alexledger/Library/Application Support/CleanShot/media/media_p0wLe6s3Vv/**)",
+      "Bash(node:*)",
+      "Bash(claude --version)"
     ],
     "deny": []
   }

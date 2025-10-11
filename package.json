@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "description": "Medical Note Generator built with Tauri",
   "scripts": {
-    "dev": "cargo tauri dev",
+    "dev": "concurrently \"cd frontend && npm run dev:watch\" \"cargo tauri dev\"",
     "build": "cargo tauri build"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0"
+    "@tauri-apps/cli": "^2.0.0",
+    "concurrently": "^8.2.2"
   }
 }

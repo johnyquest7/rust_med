@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.medical.notegenerator",
   "build": {
-    "frontendDist": "../src"
+    "frontendDist": "../frontend/build"
   },
   "app": {
     "withGlobalTauri": true,
@@ -23,10 +23,6 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": [
-      "../binaries/whisperfile*",
-      "../binaries/llamafile*",
-      "../binaries/models/*"
-    ]
+    "resources": []
   }
 }
