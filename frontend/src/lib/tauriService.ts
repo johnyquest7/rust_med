@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest, ModelInfo } from '$lib/types';
+import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest, ModelInfo, ModelPreferences, DownloadedModel } from '$lib/types';
 import { authContext } from '$lib/hooks/auth-context.svelte.js';
 
 declare global {
@@ -180,6 +180,27 @@ class TauriService {
 
   async listen<T>(event: string, callback: (data: { payload: T }) => void): Promise<void> {
     return await this.ensureTauri().event.listen(event, callback);
+  }
+
+  // Model preference methods
+  async getModelPreferences(): Promise<ModelPreferences> {
+    return await this.ensureTauri().core.invoke('get_model_preferences_command');
+  }
+
+  async saveModelPreferences(preferences: ModelPreferences): Promise<boolean> {
+    return await this.ensureTauri().core.invoke('save_model_preferences_command', { preferences });
+  }
+
+  async listDownloadedModels(): Promise<DownloadedModel[]> {
+    return await this.ensureTauri().core.invoke('list_downloaded_models');
+  }
+
+  async deleteModelFile(filename: string): Promise<boolean> {
+    return await this.ensureTauri().core.invoke('delete_model_file', { filename });
+  }
+
+  async downloadCustomModel(url: string, filename: string): Promise<string> {
+    return await this.ensureTauri().core.invoke('download_custom_model', { url, filename });
   }
 }
 

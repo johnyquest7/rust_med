@@ -21,6 +21,10 @@ use auth::*;
 use db::*;
 use downloads::*;
 
+// Additional imports for model management
+use db::{ModelPreferences, load_model_preferences, save_model_preferences,
+         model_preferences_exist, get_default_model_preferences};
+
 /// Helper to get database connection
 fn get_db_connection(app: &tauri::AppHandle) -> Result<Connection, String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
@@ -242,8 +246,21 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
         }
     };
 
-    // Find the model file
-    let model_names = [
+    // Load model preferences from database
+    let conn = get_db_connection(&app)?;
+    let preferred_model = match load_model_preferences(&conn) {
+        Ok(prefs) => {
+            println!("Using preferred whisper model: {}", prefs.whisper_model_filename);
+            Some(prefs.whisper_model_filename)
+        }
+        Err(_) => {
+            println!("No model preferences found, using default model search");
+            None
+        }
+    };
+
+    // Build list of model names to try, prioritizing the preferred model
+    let default_model_names = [
         "whisper-tiny.en.gguf",
         "ggml-tiny.en.bin",
         "whisper-tiny.en.bin",
@@ -251,16 +268,30 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
         "ggml-small.en.bin"
     ];
 
+    let mut model_names_to_try = Vec::new();
+
+    // Add preferred model first if it exists and is not already in the default list
+    if let Some(ref preferred) = preferred_model {
+        model_names_to_try.push(preferred.as_str());
+    }
+
+    // Add default models that aren't the preferred model
+    for model_name in &default_model_names {
+        if Some(model_name.to_string()) != preferred_model {
+            model_names_to_try.push(model_name);
+        }
+    }
+
     let model_paths = [
         // Production: app data directory (where setup wizard downloads them)
         app_data_dir.join("binaries").join("models"),
         // Development: relative to project root
         PathBuf::from("binaries").join("models"),
     ];
-    
+
     let mut model_path = None;
     'outer: for base_path in &model_paths {
-        for model_name in &model_names {
+        for model_name in &model_names_to_try {
             let test_path = base_path.join(model_name);
             println!("Checking model path: {:?}", test_path);
             if test_path.exists() {
@@ -270,7 +301,7 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
             }
         }
     }
-    
+
     let model_path = match model_path {
         Some(path) => path,
         None => {
@@ -434,14 +465,41 @@ async fn generate_medical_note(
         }
     };
 
-    // Find the model file with absolute paths - FIXED VERSION
-    let model_names = [
+    // Load model preferences from database
+    let conn = get_db_connection(&app)?;
+    let preferred_model = match load_model_preferences(&conn) {
+        Ok(prefs) => {
+            println!("Using preferred MedLlama model: {}", prefs.med_llama_filename);
+            Some(prefs.med_llama_filename)
+        }
+        Err(_) => {
+            println!("No model preferences found, using default model search");
+            None
+        }
+    };
+
+    // Build list of model names to try, prioritizing the preferred model
+    let default_model_names = [
         "med_llama.gguf",
-        "llama-2-7b-chat.gguf", 
+        "llama-2-7b-chat.gguf",
         "llama-2-13b-chat.gguf",
         "mistral-7b-instruct.gguf",
         "openchat-3.5.gguf"
     ];
+
+    let mut model_names_to_try = Vec::new();
+
+    // Add preferred model first if it exists and is not already in the default list
+    if let Some(ref preferred) = preferred_model {
+        model_names_to_try.push(preferred.as_str());
+    }
+
+    // Add default models that aren't the preferred model
+    for model_name in &default_model_names {
+        if Some(model_name.to_string()) != preferred_model {
+            model_names_to_try.push(model_name);
+        }
+    }
     
     let model_paths = [
         // Production: app data directory (where setup wizard downloads them)
@@ -449,10 +507,10 @@ async fn generate_medical_note(
         // Development: absolute paths from project root
         project_root.join("binaries").join("models"),
     ];
-    
+
     let mut model_path = None;
     'outer_llm: for base_path in &model_paths {
-        for model_name in &model_names {
+        for model_name in &model_names_to_try {
             let test_path = base_path.join(model_name);
             println!("Checking LLM model path: {:?}", test_path);
             if test_path.exists() {
@@ -1155,6 +1213,155 @@ async fn complete_setup(app: tauri::AppHandle) -> Result<bool, String> {
     Ok(true)
 }
 
+// Model Management Commands
+
+#[tauri::command]
+async fn get_model_preferences_command(app: tauri::AppHandle) -> Result<ModelPreferences, String> {
+    let conn = get_db_connection(&app)?;
+
+    // Check if preferences exist in database
+    if !model_preferences_exist(&conn).map_err(|e| e.to_string())? {
+        // Return default preferences if none exist
+        Ok(get_default_model_preferences())
+    } else {
+        // Load from database
+        load_model_preferences(&conn).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+async fn save_model_preferences_command(
+    app: tauri::AppHandle,
+    preferences: ModelPreferences,
+) -> Result<bool, String> {
+    let conn = get_db_connection(&app)?;
+
+    // Update timestamp
+    let mut prefs = preferences.clone();
+    prefs.updated_at = chrono::Local::now().to_rfc3339();
+
+    save_model_preferences(&conn, &prefs).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+#[derive(Serialize)]
+struct DownloadedModel {
+    filename: String,
+    size_bytes: u64,
+    path: String,
+}
+
+#[tauri::command]
+async fn list_downloaded_models(app: tauri::AppHandle) -> Result<Vec<DownloadedModel>, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let models_dir = app_data_dir.join("binaries").join("models");
+
+    // Check if directory exists
+    if !models_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut models = Vec::new();
+
+    // Read directory entries
+    let entries = fs::read_dir(&models_dir)
+        .map_err(|e| format!("Failed to read models directory: {}", e))?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+        let path = entry.path();
+
+        // Only include files (not directories)
+        if path.is_file() {
+            let metadata = fs::metadata(&path)
+                .map_err(|e| format!("Failed to get file metadata: {}", e))?;
+
+            let filename = path.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            models.push(DownloadedModel {
+                filename: filename.clone(),
+                size_bytes: metadata.len(),
+                path: path.to_string_lossy().to_string(),
+            });
+        }
+    }
+
+    // Sort by filename for consistent ordering
+    models.sort_by(|a, b| a.filename.cmp(&b.filename));
+
+    Ok(models)
+}
+
+#[tauri::command]
+async fn delete_model_file(app: tauri::AppHandle, filename: String) -> Result<bool, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let models_dir = app_data_dir.join("binaries").join("models");
+    let model_path = models_dir.join(&filename);
+
+    // Validate the filename to prevent directory traversal attacks
+    if filename.contains("..") || filename.contains("/") || filename.contains("\\") {
+        return Err("Invalid filename".to_string());
+    }
+
+    // Check if file exists
+    if !model_path.exists() {
+        return Err(format!("Model file not found: {}", filename));
+    }
+
+    // Delete the file
+    fs::remove_file(&model_path)
+        .map_err(|e| format!("Failed to delete model file: {}", e))?;
+
+    println!("Model file deleted: {}", filename);
+    Ok(true)
+}
+
+#[tauri::command]
+async fn download_custom_model(
+    app: tauri::AppHandle,
+    url: String,
+    filename: String,
+) -> Result<String, String> {
+    println!("Downloading custom model from {} to {}", url, filename);
+
+    // Validate filename
+    if filename.contains("..") || filename.contains("/") || filename.contains("\\") {
+        return Err("Invalid filename".to_string());
+    }
+
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let binaries_dir = app_data_dir.join("binaries");
+    let models_dir = binaries_dir.join("models");
+
+    // Ensure directories exist
+    if !models_dir.exists() {
+        fs::create_dir_all(&models_dir)
+            .map_err(|e| format!("Failed to create models directory: {}", e))?;
+    }
+
+    let destination_path = models_dir.join(&filename);
+
+    // Create ModelDownloadInfo for the download using the create_custom_model_info function
+    let model_info = create_custom_model_info(
+        format!("Custom model: {}", filename),
+        url.clone(),
+        filename.clone(),
+        0.0, // Unknown size for custom downloads
+    );
+
+    // Use existing download_model function
+    match download_model(&app, model_info).await {
+        Ok(path) => {
+            println!("Custom model downloaded successfully to: {:?}", path);
+            Ok(path.to_string_lossy().to_string())
+        },
+        Err(e) => Err(format!("Download failed: {}", e)),
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -1179,7 +1386,12 @@ fn main() {
             check_all_models_installed,
             get_models_info_command,
             download_model_file,
-            complete_setup
+            complete_setup,
+            get_model_preferences_command,
+            save_model_preferences_command,
+            list_downloaded_models,
+            delete_model_file,
+            download_custom_model
         ])
         .setup(|app| {
             let resource_dir = app.path().resource_dir().expect("failed to get resource directory");

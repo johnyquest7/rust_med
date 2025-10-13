@@ -131,3 +131,38 @@ export interface ModelInfo {
   /** File path if installed */
   file_path: string | null;
 }
+
+/**
+ * Whisper model size options
+ */
+export type WhisperModelSize = 'tiny' | 'base' | 'small' | 'medium' | 'large';
+
+/**
+ * Model preferences interface
+ */
+export interface ModelPreferences {
+  /** Selected Whisper model size */
+  whisper_model_size: WhisperModelSize;
+  /** URL for the Whisper model */
+  whisper_model_url: string;
+  /** Filename for the Whisper model */
+  whisper_model_filename: string;
+  /** URL for the MedLlama model */
+  med_llama_url: string;
+  /** Filename for the MedLlama model */
+  med_llama_filename: string;
+  /** Last updated timestamp */
+  updated_at: string;
+}
+
+/**
+ * Downloaded model information
+ */
+export interface DownloadedModel {
+  /** Filename of the model */
+  filename: string;
+  /** Size in bytes */
+  size_bytes: number;
+  /** Full path to the model file */
+  path: string;
+}

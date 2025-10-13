@@ -71,6 +71,20 @@ pub fn initialize_database(db_path: &PathBuf) -> DbResult<Connection> {
         [],
     )?;
 
+    // Create model preferences table
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS model_preferences (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            whisper_model_size TEXT NOT NULL DEFAULT 'tiny',
+            whisper_model_url TEXT NOT NULL,
+            whisper_model_filename TEXT NOT NULL,
+            med_llama_url TEXT NOT NULL,
+            med_llama_filename TEXT NOT NULL DEFAULT 'med_llama.gguf',
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    )?;
+
     Ok(conn)
 }
 
@@ -273,4 +287,78 @@ pub fn mark_setup_completed(conn: &Connection) -> DbResult<()> {
         params![now],
     )?;
     Ok(())
+}
+
+/// Model preferences structure
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ModelPreferences {
+    pub whisper_model_size: String, // tiny, base, small, medium, large
+    pub whisper_model_url: String,
+    pub whisper_model_filename: String,
+    pub med_llama_url: String,
+    pub med_llama_filename: String,
+    pub updated_at: String,
+}
+
+/// Save model preferences to database
+pub fn save_model_preferences(conn: &Connection, prefs: &ModelPreferences) -> DbResult<()> {
+    conn.execute(
+        "INSERT OR REPLACE INTO model_preferences
+         (id, whisper_model_size, whisper_model_url, whisper_model_filename,
+          med_llama_url, med_llama_filename, updated_at)
+         VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6)",
+        params![
+            prefs.whisper_model_size,
+            prefs.whisper_model_url,
+            prefs.whisper_model_filename,
+            prefs.med_llama_url,
+            prefs.med_llama_filename,
+            prefs.updated_at,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Load model preferences from database
+pub fn load_model_preferences(conn: &Connection) -> DbResult<ModelPreferences> {
+    let mut stmt = conn.prepare(
+        "SELECT whisper_model_size, whisper_model_url, whisper_model_filename,
+                med_llama_url, med_llama_filename, updated_at
+         FROM model_preferences WHERE id = 1"
+    )?;
+
+    let prefs = stmt.query_row([], |row| {
+        Ok(ModelPreferences {
+            whisper_model_size: row.get(0)?,
+            whisper_model_url: row.get(1)?,
+            whisper_model_filename: row.get(2)?,
+            med_llama_url: row.get(3)?,
+            med_llama_filename: row.get(4)?,
+            updated_at: row.get(5)?,
+        })
+    }).map_err(|e| match e {
+        rusqlite::Error::QueryReturnedNoRows => DbError::NotFound("No model preferences found".to_string()),
+        _ => DbError::Sqlite(e),
+    })?;
+
+    Ok(prefs)
+}
+
+/// Check if model preferences exist
+pub fn model_preferences_exist(conn: &Connection) -> DbResult<bool> {
+    let mut stmt = conn.prepare("SELECT COUNT(*) FROM model_preferences WHERE id = 1")?;
+    let count: i64 = stmt.query_row([], |row| row.get(0))?;
+    Ok(count > 0)
+}
+
+/// Get default model preferences
+pub fn get_default_model_preferences() -> ModelPreferences {
+    ModelPreferences {
+        whisper_model_size: "tiny".to_string(),
+        whisper_model_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin".to_string(),
+        whisper_model_filename: "whisper-tiny.en.gguf".to_string(),
+        med_llama_url: "https://huggingface.co/Johnyquest7/med_llm_small/resolve/main/med_llama.gguf".to_string(),
+        med_llama_filename: "med_llama.gguf".to_string(),
+        updated_at: chrono::Local::now().to_rfc3339(),
+    }
 }

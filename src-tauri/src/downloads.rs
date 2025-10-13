@@ -44,7 +44,63 @@ pub struct ModelDownloadInfo {
     pub size_mb: f64,
 }
 
-/// Get the list of models that need to be downloaded
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WhisperModelSize {
+    Tiny,
+    Base,
+    Small,
+    Medium,
+    Large,
+}
+
+/// Get whisper model info based on model size
+pub fn get_whisper_model_info(size: WhisperModelSize) -> ModelDownloadInfo {
+    match size {
+        WhisperModelSize::Tiny => ModelDownloadInfo {
+            name: "Whisper Tiny Model (English)".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin".to_string(),
+            file_name: "whisper-tiny.en.gguf".to_string(),
+            size_mb: 141.0,
+        },
+        WhisperModelSize::Base => ModelDownloadInfo {
+            name: "Whisper Base Model (English)".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin".to_string(),
+            file_name: "whisper-base.en.gguf".to_string(),
+            size_mb: 142.0,
+        },
+        WhisperModelSize::Small => ModelDownloadInfo {
+            name: "Whisper Small Model (English)".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin".to_string(),
+            file_name: "whisper-small.en.gguf".to_string(),
+            size_mb: 466.0,
+        },
+        WhisperModelSize::Medium => ModelDownloadInfo {
+            name: "Whisper Medium Model (English)".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin".to_string(),
+            file_name: "whisper-medium.en.gguf".to_string(),
+            size_mb: 1500.0,
+        },
+        WhisperModelSize::Large => ModelDownloadInfo {
+            name: "Whisper Large Model (Multilingual)".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin".to_string(),
+            file_name: "whisper-large.gguf".to_string(),
+            size_mb: 3100.0,
+        },
+    }
+}
+
+/// Create ModelDownloadInfo from custom URL and model name
+pub fn create_custom_model_info(name: String, url: String, file_name: String, size_mb: f64) -> ModelDownloadInfo {
+    ModelDownloadInfo {
+        name,
+        url,
+        file_name,
+        size_mb,
+    }
+}
+
+/// Get the list of models that need to be downloaded (uses default preferences)
 pub fn get_required_models() -> Vec<ModelDownloadInfo> {
     vec![
         ModelDownloadInfo {
@@ -59,12 +115,7 @@ pub fn get_required_models() -> Vec<ModelDownloadInfo> {
             file_name: "llamafile".to_string(),
             size_mb: 293.0,
         },
-        ModelDownloadInfo {
-            name: "Whisper Tiny Model (English)".to_string(),
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin".to_string(),
-            file_name: "whisper-tiny.en.gguf".to_string(),
-            size_mb: 141.0,
-        },
+        get_whisper_model_info(WhisperModelSize::Tiny),
         ModelDownloadInfo {
             name: "MedLlama Model (Medical Notes)".to_string(),
             url: "https://huggingface.co/Johnyquest7/med_llm_small/resolve/main/med_llama.gguf".to_string(),
@@ -149,6 +200,54 @@ pub async fn get_models_info(app: &AppHandle) -> Result<Vec<ModelInfo>, String> 
     }
 
     Ok(results)
+}
+
+/// List all downloaded whisper models in the models directory
+pub async fn list_downloaded_whisper_models(app: &AppHandle) -> Result<Vec<String>, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let models_dir = app_data_dir.join("binaries").join("models");
+
+    if !models_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut whisper_models = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(&models_dir) {
+        for entry in entries.flatten() {
+            if let Ok(file_name) = entry.file_name().into_string() {
+                if file_name.starts_with("whisper-") && (file_name.ends_with(".gguf") || file_name.ends_with(".bin")) {
+                    whisper_models.push(file_name);
+                }
+            }
+        }
+    }
+
+    whisper_models.sort();
+    Ok(whisper_models)
+}
+
+/// Delete a model file by filename
+pub async fn delete_model_file(app: &AppHandle, file_name: String) -> Result<(), String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let binaries_dir = app_data_dir.join("binaries");
+    let models_dir = binaries_dir.join("models");
+
+    // Determine path based on file extension
+    let file_path = if file_name.ends_with(".gguf") || file_name.ends_with(".bin") {
+        models_dir.join(&file_name)
+    } else {
+        binaries_dir.join(&file_name)
+    };
+
+    if !file_path.exists() {
+        return Err(format!("Model file not found: {}", file_name));
+    }
+
+    std::fs::remove_file(&file_path)
+        .map_err(|e| format!("Failed to delete model file: {}", e))?;
+
+    Ok(())
 }
 
 /// Download a single model file with progress tracking
