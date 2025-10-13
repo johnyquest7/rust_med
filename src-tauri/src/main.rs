@@ -1182,7 +1182,15 @@ async fn get_required_models_list() -> Result<Vec<ModelDownloadInfo>, String> {
 
 #[tauri::command]
 async fn check_models_downloaded(app: tauri::AppHandle) -> Result<Vec<(ModelDownloadInfo, bool)>, String> {
-    check_models_exist(&app).await
+    // Get user preferences to determine which models to check
+    let conn = get_db_connection(&app)?;
+    let preferences = if model_preferences_exist(&conn).map_err(|e| e.to_string())? {
+        load_model_preferences(&conn).map_err(|e| e.to_string())?
+    } else {
+        get_default_model_preferences()
+    };
+    
+    check_models_exist_with_preferences(&app, &preferences).await
 }
 
 #[tauri::command]
@@ -1192,7 +1200,15 @@ async fn check_all_models_installed(app: tauri::AppHandle) -> Result<bool, Strin
 
 #[tauri::command]
 async fn get_models_info_command(app: tauri::AppHandle) -> Result<Vec<ModelInfo>, String> {
-    get_models_info(&app).await
+    // Get user preferences to determine which models to check
+    let conn = get_db_connection(&app)?;
+    let preferences = if model_preferences_exist(&conn).map_err(|e| e.to_string())? {
+        load_model_preferences(&conn).map_err(|e| e.to_string())?
+    } else {
+        get_default_model_preferences()
+    };
+    
+    get_models_info_with_preferences(&app, &preferences).await
 }
 
 #[tauri::command]

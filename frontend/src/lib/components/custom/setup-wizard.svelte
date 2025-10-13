@@ -285,6 +285,44 @@
   function hasFailedDownloads() {
     return models.some(m => m.status === 'failed');
   }
+
+  async function handleWhisperModelChange() {
+    try {
+      // Save the new preference immediately
+      await tauriService.saveModelPreferences({
+        whisper_model_size: selectedWhisperSize,
+        whisper_model_url: getWhisperModelUrl(selectedWhisperSize),
+        whisper_model_filename: `whisper-${selectedWhisperSize}.en.gguf`,
+        med_llama_url: medLlamaUrl,
+        med_llama_filename: 'med_llama.gguf',
+        updated_at: new Date().toISOString()
+      });
+      
+      // Reload models with the new selection
+      await loadModels();
+    } catch (error) {
+      console.error('Failed to save whisper model preference:', error);
+    }
+  }
+
+  async function handleMedLlamaUrlChange() {
+    try {
+      // Save the new preference immediately
+      await tauriService.saveModelPreferences({
+        whisper_model_size: selectedWhisperSize,
+        whisper_model_url: getWhisperModelUrl(selectedWhisperSize),
+        whisper_model_filename: `whisper-${selectedWhisperSize}.en.gguf`,
+        med_llama_url: medLlamaUrl,
+        med_llama_filename: 'med_llama.gguf',
+        updated_at: new Date().toISOString()
+      });
+      
+      // Reload models with the new selection
+      await loadModels();
+    } catch (error) {
+      console.error('Failed to save medllama url preference:', error);
+    }
+  }
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-background px-4">
@@ -364,7 +402,7 @@
                       <Select.Root
                         type="single"
                         bind:value={selectedWhisperSize}
-                        onValueChange={() => loadModels()}
+                        onValueChange={handleWhisperModelChange}
                       >
                         <Select.Trigger id="whisper-size-select-{index}" class="w-full h-8 text-xs">
                           {whisperModelOptions.find(opt => opt.value === selectedWhisperSize)?.label || 'Select model size'}
@@ -391,10 +429,10 @@
                         bind:value={medLlamaUrl}
                         placeholder="https://huggingface.co/..."
                         class="font-mono text-xs h-8"
-                        onchange={() => loadModels()}
+                        onchange={handleMedLlamaUrlChange}
                       />
                       <p class="text-xs text-muted-foreground">
-                        Direct download link to a .gguf model file. Default is MedLlama-2-7B.
+                        Direct download link to a .gguf model file.
                       </p>
                     </div>
                   {/if}
@@ -421,7 +459,7 @@
 
         <!-- Action Buttons -->
         <div class="flex items-center justify-between border-t pt-4">
-          <div class="text-sm text-muted-foreground">
+          <div class="text-sm text-muted-foreground text-balance">
             {#if isDownloading}
               Downloading models... This may take several minutes.
             {:else if allModelsDownloaded()}

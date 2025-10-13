@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager};
 use futures_util::StreamExt;
 use std::io::Write;
+use crate::db::ModelPreferences;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DownloadError {
@@ -125,6 +126,41 @@ pub fn get_required_models() -> Vec<ModelDownloadInfo> {
     ]
 }
 
+/// Get the list of models that need to be downloaded based on user preferences
+pub fn get_required_models_with_preferences(preferences: &ModelPreferences) -> Vec<ModelDownloadInfo> {
+    // Parse the whisper model size from preferences
+    let whisper_size = match preferences.whisper_model_size.as_str() {
+        "tiny" => WhisperModelSize::Tiny,
+        "base" => WhisperModelSize::Base,
+        "small" => WhisperModelSize::Small,
+        "medium" => WhisperModelSize::Medium,
+        "large" => WhisperModelSize::Large,
+        _ => WhisperModelSize::Tiny, // Default fallback
+    };
+
+    vec![
+        ModelDownloadInfo {
+            name: "Whisperfile (Transcription Engine)".to_string(),
+            url: "https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile".to_string(),
+            file_name: "whisperfile".to_string(),
+            size_mb: 83.0,
+        },
+        ModelDownloadInfo {
+            name: "Llamafile (LLM Runtime)".to_string(),
+            url: "https://github.com/Mozilla-Ocho/llamafile/releases/download/0.9.3/llamafile-0.9.3".to_string(),
+            file_name: "llamafile".to_string(),
+            size_mb: 293.0,
+        },
+        get_whisper_model_info(whisper_size),
+        ModelDownloadInfo {
+            name: "MedLlama Model (Medical Notes)".to_string(),
+            url: preferences.med_llama_url.clone(),
+            file_name: preferences.med_llama_filename.clone(),
+            size_mb: 3800.0, // Approximate size for MedLlama
+        },
+    ]
+}
+
 /// Check if all required models are already downloaded
 pub async fn check_models_exist(app: &AppHandle) -> Result<Vec<(ModelDownloadInfo, bool)>, String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
@@ -132,6 +168,29 @@ pub async fn check_models_exist(app: &AppHandle) -> Result<Vec<(ModelDownloadInf
     let models_dir = binaries_dir.join("models");
 
     let models = get_required_models();
+    let mut results = Vec::new();
+
+    for model in models {
+        let path = if model.file_name.ends_with(".gguf") {
+            models_dir.join(&model.file_name)
+        } else {
+            binaries_dir.join(&model.file_name)
+        };
+
+        let exists = path.exists();
+        results.push((model, exists));
+    }
+
+    Ok(results)
+}
+
+/// Check if all required models are already downloaded based on user preferences
+pub async fn check_models_exist_with_preferences(app: &AppHandle, preferences: &ModelPreferences) -> Result<Vec<(ModelDownloadInfo, bool)>, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let binaries_dir = app_data_dir.join("binaries");
+    let models_dir = binaries_dir.join("models");
+
+    let models = get_required_models_with_preferences(preferences);
     let mut results = Vec::new();
 
     for model in models {
@@ -174,6 +233,41 @@ pub async fn get_models_info(app: &AppHandle) -> Result<Vec<ModelInfo>, String> 
     let models_dir = binaries_dir.join("models");
 
     let models = get_required_models();
+    let mut results = Vec::new();
+
+    for model in models {
+        let path = if model.file_name.ends_with(".gguf") {
+            models_dir.join(&model.file_name)
+        } else {
+            binaries_dir.join(&model.file_name)
+        };
+
+        let installed = path.exists();
+        let file_path = if installed {
+            Some(path.to_string_lossy().to_string())
+        } else {
+            None
+        };
+
+        results.push(ModelInfo {
+            name: model.name,
+            file_name: model.file_name,
+            size_mb: model.size_mb,
+            installed,
+            file_path,
+        });
+    }
+
+    Ok(results)
+}
+
+/// Get detailed information about all models including their installation status based on user preferences
+pub async fn get_models_info_with_preferences(app: &AppHandle, preferences: &ModelPreferences) -> Result<Vec<ModelInfo>, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let binaries_dir = app_data_dir.join("binaries");
+    let models_dir = binaries_dir.join("models");
+
+    let models = get_required_models_with_preferences(preferences);
     let mut results = Vec::new();
 
     for model in models {
