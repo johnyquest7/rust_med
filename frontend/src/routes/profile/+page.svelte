@@ -227,9 +227,10 @@
   }
 
   async function handleDeleteModel(filename: string) {
-    if (!confirm(`Are you sure you want to delete ${filename}? This will free up storage space.`)) {
-      return;
-    }
+    // TODO: this confirmation wasn't working
+    // if (!confirm(`Are you sure you want to delete ${filename}? This will free up storage space.`)) {
+    //   return;
+    // }
 
     try {
       await tauriService.deleteModelFile(filename);
