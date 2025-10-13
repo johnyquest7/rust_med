@@ -19,6 +19,7 @@
   let authFileExists = $state(false);
   let isLoading = $state(true);
   let setupCompleted = $state(false);
+  let modelsInstalled = $state(false);
   let checkingSetup = $state(true);
 
   // Check authentication status and setup status on mount
@@ -30,7 +31,7 @@
         return;
       }
 
-      // Check setup status first
+      // Check setup status first (legacy check for database flag)
       try {
         const setupStatus = await (window as any).__TAURI__.core.invoke('check_setup_status');
         setupCompleted = setupStatus;
@@ -39,6 +40,25 @@
         // If setup check fails, assume setup is not completed
         setupCompleted = false;
       }
+
+      // Check if all required models are installed
+      try {
+        const allModelsInstalled = await (window as any).__TAURI__.core.invoke('check_all_models_installed');
+        modelsInstalled = allModelsInstalled;
+
+        // If models are not installed, we need to show the setup wizard
+        // regardless of the legacy setup flag
+        if (!modelsInstalled) {
+          console.log('Models are not installed. Setup wizard will be shown.');
+          setupCompleted = false;
+        }
+      } catch (error) {
+        console.error('Failed to check models installation:', error);
+        // If model check fails, assume models are not installed
+        modelsInstalled = false;
+        setupCompleted = false;
+      }
+
       checkingSetup = false;
 
       // Then check auth status

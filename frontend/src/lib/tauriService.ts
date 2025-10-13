@@ -162,6 +162,10 @@ class TauriService {
     return await this.ensureTauri().core.invoke('check_models_downloaded');
   }
 
+  async checkAllModelsInstalled(): Promise<boolean> {
+    return await this.ensureTauri().core.invoke('check_all_models_installed');
+  }
+
   async downloadModelFile(model: any): Promise<void> {
     return await this.ensureTauri().core.invoke('download_model_file', { model });
   }

@@ -97,6 +97,16 @@ pub async fn check_models_exist(app: &AppHandle) -> Result<Vec<(ModelDownloadInf
     Ok(results)
 }
 
+/// Check if all required models are present (returns true only if ALL models exist)
+pub async fn check_all_models_present(app: &AppHandle) -> Result<bool, String> {
+    let model_statuses = check_models_exist(app).await?;
+
+    // Return true only if all models exist
+    let all_present = model_statuses.iter().all(|(_, exists)| *exists);
+
+    Ok(all_present)
+}
+
 /// Download a single model file with progress tracking
 pub async fn download_model(
     app: &AppHandle,
