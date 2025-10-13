@@ -115,3 +115,19 @@ export interface TauriNote extends TauriNoteIn {
 }
 
 export type RecordingState = 'not-ready' | 'ready' | 'recording' | 'paused' | 'stopped' | 'error';
+
+/**
+ * Model information interface
+ */
+export interface ModelInfo {
+  /** Display name of the model */
+  name: string;
+  /** File name of the model */
+  file_name: string;
+  /** Size in megabytes */
+  size_mb: number;
+  /** Whether the model is installed */
+  installed: boolean;
+  /** File path if installed */
+  file_path: string | null;
+}

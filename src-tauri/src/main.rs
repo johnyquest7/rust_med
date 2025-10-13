@@ -1133,6 +1133,11 @@ async fn check_all_models_installed(app: tauri::AppHandle) -> Result<bool, Strin
 }
 
 #[tauri::command]
+async fn get_models_info_command(app: tauri::AppHandle) -> Result<Vec<ModelInfo>, String> {
+    get_models_info(&app).await
+}
+
+#[tauri::command]
 async fn download_model_file(
     app: tauri::AppHandle,
     model: ModelDownloadInfo,
@@ -1172,6 +1177,7 @@ fn main() {
             get_required_models_list,
             check_models_downloaded,
             check_all_models_installed,
+            get_models_info_command,
             download_model_file,
             complete_setup
         ])

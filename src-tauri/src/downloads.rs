@@ -107,6 +107,50 @@ pub async fn check_all_models_present(app: &AppHandle) -> Result<bool, String> {
     Ok(all_present)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelInfo {
+    pub name: String,
+    pub file_name: String,
+    pub size_mb: f64,
+    pub installed: bool,
+    pub file_path: Option<String>,
+}
+
+/// Get detailed information about all models including their installation status
+pub async fn get_models_info(app: &AppHandle) -> Result<Vec<ModelInfo>, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let binaries_dir = app_data_dir.join("binaries");
+    let models_dir = binaries_dir.join("models");
+
+    let models = get_required_models();
+    let mut results = Vec::new();
+
+    for model in models {
+        let path = if model.file_name.ends_with(".gguf") {
+            models_dir.join(&model.file_name)
+        } else {
+            binaries_dir.join(&model.file_name)
+        };
+
+        let installed = path.exists();
+        let file_path = if installed {
+            Some(path.to_string_lossy().to_string())
+        } else {
+            None
+        };
+
+        results.push(ModelInfo {
+            name: model.name,
+            file_name: model.file_name,
+            size_mb: model.size_mb,
+            installed,
+            file_path,
+        });
+    }
+
+    Ok(results)
+}
+
 /// Download a single model file with progress tracking
 pub async fn download_model(
     app: &AppHandle,

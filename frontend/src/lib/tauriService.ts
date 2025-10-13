@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest } from '$lib/types';
+import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest, ModelInfo } from '$lib/types';
 import { authContext } from '$lib/hooks/auth-context.svelte.js';
 
 declare global {
@@ -164,6 +164,10 @@ class TauriService {
 
   async checkAllModelsInstalled(): Promise<boolean> {
     return await this.ensureTauri().core.invoke('check_all_models_installed');
+  }
+
+  async getModelsInfo(): Promise<ModelInfo[]> {
+    return await this.ensureTauri().core.invoke('get_models_info_command');
   }
 
   async downloadModelFile(model: any): Promise<void> {
