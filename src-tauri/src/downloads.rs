@@ -67,9 +67,9 @@ pub fn get_required_models() -> Vec<ModelDownloadInfo> {
         },
         ModelDownloadInfo {
             name: "MedLlama Model (Medical Notes)".to_string(),
-            url: "https://huggingface.co/garcianacho/MedLlama-2-7B-GGUF/resolve/main/MedLlama-2-7B.q4_K_S.gguf".to_string(),
+            url: "https://huggingface.co/Johnyquest7/med_llm_small/resolve/main/med_llama.gguf".to_string(),
             file_name: "med_llama.gguf".to_string(),
-            size_mb: 3686.0,
+            size_mb: 807.7,
         },
     ]
 }
