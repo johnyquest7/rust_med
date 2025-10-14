@@ -546,7 +546,7 @@ async fn generate_medical_note(
         (
             constants::SOAP_SYSTEM_PROMPT,
             constants::SOAP_USER_PROMPT_TEMPLATE,
-            "S: "
+            "<soap_note>"
         )
     } else {
         (
