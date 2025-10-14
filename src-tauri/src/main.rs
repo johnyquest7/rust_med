@@ -700,14 +700,7 @@ fn clean_llm_output(output: &str) -> String {
         result = result.replace(artifact, "");
     }
     
-    // Since the model starts with "S: " we need to add it back if it was stripped
     let mut cleaned = result.trim().to_string();
-    
-    // If the output doesn't start with "S:", add it back (only for SOAP notes)
-    if !cleaned.starts_with("S:") && !cleaned.is_empty() && 
-       !cleaned.contains("Presenting Illness") && !cleaned.contains("History of Presenting Illness") {
-        cleaned = format!("S: {}", cleaned);
-    }
     
     // Handle case where model might continue generating beyond SOAP note
     // Look for natural stopping points or repetitive content
