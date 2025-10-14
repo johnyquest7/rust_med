@@ -541,65 +541,36 @@ async fn generate_medical_note(
         }
     };
 
-    // Use the correct chat template for your model
-    let prompt = if note_type == "soap" {
-        format!(
-            "<|begin_of_text|><|start_header_id|>user<|end_header_id|>
-You are an expert medical professor assisting in the creation of medically accurate SOAP notes.  
-Create a Medical SOAP note from the transcript, following these guidelines:\n    
-Correct any medical terminology errors that might have happened during transcription before generating the SOAP note.\n
-S (Subjective): Summarize the patient's reported symptoms, including chief complaint and relevant history.
-Rely on the patient's statements as the primary source and ensure standardized terminology.\n    
-O (Objective): Include objective findings in the transcripts such as vital signs, physical exam findings, lab results, and imaging.\n    
-A (Assessment): Concise assessment combining subjective and objective data. State the diagnoses and assesment of the diagnoses in a numbered list.\n    
-P (Plan): Outline the treatment plan. Compile the report based solely on the transcript provided.\n    
-Please format the summary in a clean, simple list format without using markdown or bullet points. Use 'S:', 'O:', 'A:', 'P:' directly followed by the text. TRANSCRIPT: \n
-
-{}
-<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-S: ",
-            transcript
+    // Use the correct chat template for your model with separated system and user prompts
+    let (system_prompt, user_prompt_template, assistant_start) = if note_type == "soap" {
+        (
+            constants::SOAP_SYSTEM_PROMPT,
+            constants::SOAP_USER_PROMPT_TEMPLATE,
+            "S: "
         )
     } else {
-        format!(
-            "<|begin_of_text|><|start_header_id|>user<|end_header_id|>
-You are an expert medical transcriptionist. Correct any medical terminology errors that might have happened during transcription before generating the medical note. You convert medical transcript to a structured medical note with these sections in this order: 
-1. Presenting Illness
-(Bullet point statements of the main problem)
-2. History of Presenting Illness
-(Chronological narrative: symptom onset, progression, modifiers, associated factors)
-3. Past Medical History
-(List chronic illnesses and past medical diagnoses mentioned in the transcript. Do not include surgeries)
-4. Surgical History
-(List prior surgeries with year if known mentioned in the transcript)
-5. Family History
-(Relevant family history mentioned in the transcript)
-6. Social History
-(Occupation, tobacco/alcohol/drug use, exercise, living situation if mentioned in the transcript)
-7. Allergy History
-(Drug/food/environmental allergies + reactions - if mentioned in the transcript)
-8. Medication History
-(List medications the patient is already taking. Do not place any medication the patient is currently not taking.) 
-9. Dietary History
-(\"Not applicable\" if unrelated, otherwise summarize diet pattern)
-10. Review of Systems
-(Head-to-toe -ordered bullets; note positives and pertinent negatives- mentioned in the transcript)
-11. Physical Exam Findings
-Vital Signs (BP, HR, RR, Temp, SpO₂, HT, WT, BMI) - if mentioned in the transcript
-(Structured by system: General, HEENT, CV, Resp, Abd, Neuro, MSK, Skin, Psych) - if mentioned in the transcript
-12. Labs and Imaging
-(labs, imaging results)
-13. Assessment and Plan 
-(List each diagnoses and treatment plan. No other information needed in this section.Do not generate new diagnoses)
-
-Medical transcript:
-{}
-
-<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-",
-            transcript
+        (
+            constants::FULL_MEDICAL_SYSTEM_PROMPT,
+            constants::FULL_MEDICAL_USER_PROMPT_TEMPLATE,
+            ""
         )
     };
+
+    // Format the user prompt with the transcript
+    let user_prompt = user_prompt_template.replace("{transcript}", &transcript);
+
+    // Combine system and user prompts with proper chat template formatting
+    let prompt = format!(
+        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+{system_prompt}
+<|eot_id|><|start_header_id|>user<|end_header_id|>
+{user_prompt}
+<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+{assistant_start}",
+        system_prompt = system_prompt,
+        user_prompt = user_prompt,
+        assistant_start = assistant_start
+    );
 
     println!("=== PROMPT BEING SENT ===");
     println!("{}", prompt);
