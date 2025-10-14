@@ -1359,8 +1359,6 @@ async fn download_custom_model(
             .map_err(|e| format!("Failed to create models directory: {}", e))?;
     }
 
-    let destination_path = models_dir.join(&filename);
-
     // Create ModelDownloadInfo for the download using the create_custom_model_info function
     let model_info = create_custom_model_info(
         format!("Custom model: {}", filename),

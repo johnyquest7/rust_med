@@ -14,6 +14,7 @@ pub enum DownloadError {
     Io(#[from] std::io::Error),
 
     #[error("Invalid URL: {0}")]
+    #[allow(dead_code)]
     InvalidUrl(String),
 
     #[error("Download failed: {0}")]
@@ -333,6 +334,7 @@ pub struct ModelInfo {
 }
 
 /// Get detailed information about all models including their installation status
+#[allow(dead_code)]
 pub async fn get_models_info(app: &AppHandle) -> Result<Vec<ModelInfo>, String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let binaries_dir = app_data_dir.join("binaries");
@@ -403,6 +405,7 @@ pub async fn get_models_info_with_preferences(app: &AppHandle, preferences: &Mod
 }
 
 /// List all downloaded whisper models in the models directory
+#[allow(dead_code)]
 pub async fn list_downloaded_whisper_models(app: &AppHandle) -> Result<Vec<String>, String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let models_dir = app_data_dir.join("binaries").join("models");
@@ -428,6 +431,7 @@ pub async fn list_downloaded_whisper_models(app: &AppHandle) -> Result<Vec<Strin
 }
 
 /// Delete a model file by filename
+#[allow(dead_code)]
 pub async fn delete_model_file(app: &AppHandle, file_name: String) -> Result<(), String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let binaries_dir = app_data_dir.join("binaries");
