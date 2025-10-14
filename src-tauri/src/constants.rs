@@ -1,3 +1,6 @@
+// The r#".."# means string literal raw string
+// This is used to avoid having to escape backslashes in the prompt
+
 #[allow(dead_code)]
 pub const MEDICAL_NOTE_PROMPT: &str = r#"Given the following doctor-patient conversation transcript, create a concise medical note in SOAP format:
 
