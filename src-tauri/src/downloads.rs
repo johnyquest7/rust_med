@@ -55,6 +55,106 @@ pub enum WhisperModelSize {
     Large,
 }
 
+/// Metadata about a Whisper model option
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WhisperModelMetadata {
+    pub value: String,
+    pub label: String,
+    pub size: f64,
+    pub url: String,
+    pub file_name: String,
+}
+
+/// Metadata about the fixed runtime binaries
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuntimeBinaryMetadata {
+    pub name: String,
+    pub url: String,
+    pub file_name: String,
+    pub size_mb: f64,
+}
+
+/// Metadata about the default MedLlama model
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MedLlamaModelMetadata {
+    pub name: String,
+    pub default_url: String,
+    pub file_name: String,
+    pub size_mb: f64,
+}
+
+/// Get all available Whisper model options with metadata
+/// This is the SINGLE SOURCE OF TRUTH for Whisper model information
+pub fn get_whisper_model_options() -> Vec<WhisperModelMetadata> {
+    vec![
+        WhisperModelMetadata {
+            value: "tiny".to_string(),
+            label: "Tiny (141 MB) - Fastest".to_string(),
+            size: 141.0,
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin".to_string(),
+            file_name: "whisper-tiny.en.gguf".to_string(),
+        },
+        WhisperModelMetadata {
+            value: "base".to_string(),
+            label: "Base (142 MB) - Fast".to_string(),
+            size: 142.0,
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin".to_string(),
+            file_name: "whisper-base.en.gguf".to_string(),
+        },
+        WhisperModelMetadata {
+            value: "small".to_string(),
+            label: "Small (466 MB) - Balanced".to_string(),
+            size: 466.0,
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin".to_string(),
+            file_name: "whisper-small.en.gguf".to_string(),
+        },
+        WhisperModelMetadata {
+            value: "medium".to_string(),
+            label: "Medium (1.5 GB) - Accurate".to_string(),
+            size: 1500.0,
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin".to_string(),
+            file_name: "whisper-medium.en.gguf".to_string(),
+        },
+        WhisperModelMetadata {
+            value: "large".to_string(),
+            label: "Large (3.1 GB) - Most Accurate".to_string(),
+            size: 3100.0,
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin".to_string(),
+            file_name: "whisper-large.gguf".to_string(),
+        },
+    ]
+}
+
+/// Get runtime binaries metadata
+/// This is the SINGLE SOURCE OF TRUTH for runtime binary information
+pub fn get_runtime_binaries() -> Vec<RuntimeBinaryMetadata> {
+    vec![
+        RuntimeBinaryMetadata {
+            name: "Whisperfile (Transcription Engine)".to_string(),
+            url: "https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile".to_string(),
+            file_name: "whisperfile".to_string(),
+            size_mb: 83.0,
+        },
+        RuntimeBinaryMetadata {
+            name: "Llamafile (LLM Runtime)".to_string(),
+            url: "https://github.com/Mozilla-Ocho/llamafile/releases/download/0.9.3/llamafile-0.9.3".to_string(),
+            file_name: "llamafile".to_string(),
+            size_mb: 293.0,
+        },
+    ]
+}
+
+/// Get default MedLlama model metadata
+/// This is the SINGLE SOURCE OF TRUTH for MedLlama model information
+pub fn get_medllama_metadata() -> MedLlamaModelMetadata {
+    MedLlamaModelMetadata {
+        name: "MedLlama Model (Medical Notes)".to_string(),
+        default_url: "https://huggingface.co/Johnyquest7/med_llm_small/resolve/main/med_llama.gguf".to_string(),
+        file_name: "med_llama.gguf".to_string(),
+        size_mb: 770.0,
+    }
+}
+
 /// Get whisper model info based on model size
 pub fn get_whisper_model_info(size: WhisperModelSize) -> ModelDownloadInfo {
     match size {
@@ -103,31 +203,47 @@ pub fn create_custom_model_info(name: String, url: String, file_name: String, si
 
 /// Get the list of models that need to be downloaded (uses default preferences)
 pub fn get_required_models() -> Vec<ModelDownloadInfo> {
-    vec![
-        ModelDownloadInfo {
-            name: "Whisperfile (Transcription Engine)".to_string(),
-            url: "https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile".to_string(),
-            file_name: "whisperfile".to_string(),
-            size_mb: 83.0,
-        },
-        ModelDownloadInfo {
-            name: "Llamafile (LLM Runtime)".to_string(),
-            url: "https://github.com/Mozilla-Ocho/llamafile/releases/download/0.9.3/llamafile-0.9.3".to_string(),
-            file_name: "llamafile".to_string(),
-            size_mb: 293.0,
-        },
-        get_whisper_model_info(WhisperModelSize::Tiny),
-        ModelDownloadInfo {
-            name: "MedLlama Model (Medical Notes)".to_string(),
-            url: "https://huggingface.co/Johnyquest7/med_llm_small/resolve/main/med_llama.gguf".to_string(),
-            file_name: "med_llama.gguf".to_string(),
-            size_mb: 770.0,
-        },
-    ]
+    let mut models = Vec::new();
+
+    // Add runtime binaries
+    for binary in get_runtime_binaries() {
+        models.push(ModelDownloadInfo {
+            name: binary.name,
+            url: binary.url,
+            file_name: binary.file_name,
+            size_mb: binary.size_mb,
+        });
+    }
+
+    // Add default Whisper model (tiny)
+    models.push(get_whisper_model_info(WhisperModelSize::Tiny));
+
+    // Add default MedLlama model
+    let medllama = get_medllama_metadata();
+    models.push(ModelDownloadInfo {
+        name: medllama.name,
+        url: medllama.default_url,
+        file_name: medllama.file_name,
+        size_mb: medllama.size_mb,
+    });
+
+    models
 }
 
 /// Get the list of models that need to be downloaded based on user preferences
 pub fn get_required_models_with_preferences(preferences: &ModelPreferences) -> Vec<ModelDownloadInfo> {
+    let mut models = Vec::new();
+
+    // Add runtime binaries
+    for binary in get_runtime_binaries() {
+        models.push(ModelDownloadInfo {
+            name: binary.name,
+            url: binary.url,
+            file_name: binary.file_name,
+            size_mb: binary.size_mb,
+        });
+    }
+
     // Parse the whisper model size from preferences
     let whisper_size = match preferences.whisper_model_size.as_str() {
         "tiny" => WhisperModelSize::Tiny,
@@ -137,28 +253,18 @@ pub fn get_required_models_with_preferences(preferences: &ModelPreferences) -> V
         "large" => WhisperModelSize::Large,
         _ => WhisperModelSize::Tiny, // Default fallback
     };
+    models.push(get_whisper_model_info(whisper_size));
 
-    vec![
-        ModelDownloadInfo {
-            name: "Whisperfile (Transcription Engine)".to_string(),
-            url: "https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile".to_string(),
-            file_name: "whisperfile".to_string(),
-            size_mb: 83.0,
-        },
-        ModelDownloadInfo {
-            name: "Llamafile (LLM Runtime)".to_string(),
-            url: "https://github.com/Mozilla-Ocho/llamafile/releases/download/0.9.3/llamafile-0.9.3".to_string(),
-            file_name: "llamafile".to_string(),
-            size_mb: 293.0,
-        },
-        get_whisper_model_info(whisper_size),
-        ModelDownloadInfo {
-            name: "MedLlama Model (Medical Notes)".to_string(),
-            url: preferences.med_llama_url.clone(),
-            file_name: preferences.med_llama_filename.clone(),
-            size_mb: 770.0, // Approximate size for MedLlama
-        },
-    ]
+    // Add MedLlama model (uses user preference URL or default)
+    let medllama = get_medllama_metadata();
+    models.push(ModelDownloadInfo {
+        name: medllama.name,
+        url: preferences.med_llama_url.clone(),
+        file_name: preferences.med_llama_filename.clone(),
+        size_mb: medllama.size_mb,
+    });
+
+    models
 }
 
 /// Check if all required models are already downloaded

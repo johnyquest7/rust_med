@@ -10,7 +10,7 @@
   import * as Select from '$lib/components/ui/select';
   import * as Tabs from '$lib/components/ui/tabs';
   import { tauriService } from '$lib/tauriService';
-  import type { ModelInfo, ModelPreferences, WhisperModelSize, DownloadedModel } from '$lib/types';
+  import type { ModelInfo, ModelPreferences, WhisperModelSize, DownloadedModel, WhisperModelMetadata, MedLlamaModelMetadata } from '$lib/types';
   import User from '@lucide/svelte/icons/user';
   import Shield from '@lucide/svelte/icons/shield';
   import LogOut from '@lucide/svelte/icons/log-out';
@@ -53,23 +53,39 @@
   let downloadProgress = $state('');
   let successMessage = $state('');
 
-  // Whisper model options with sizes
-  const whisperModelOptions = [
-    { value: 'tiny', label: 'Tiny (141 MB) - Fastest', size: 141 },
-    { value: 'base', label: 'Base (142 MB) - Fast', size: 142 },
-    { value: 'small', label: 'Small (466 MB) - Balanced', size: 466 },
-    { value: 'medium', label: 'Medium (1.5 GB) - Accurate', size: 1500 },
-    { value: 'large', label: 'Large (3.1 GB) - Most Accurate', size: 3100 }
-  ];
+  // Model metadata from backend (SINGLE SOURCE OF TRUTH)
+  let whisperModelOptions = $state<WhisperModelMetadata[]>([]);
+  let medllamaMetadata = $state<MedLlamaModelMetadata | null>(null);
 
   // Load models information on mount
   onMount(async () => {
     await Promise.all([
+      loadModelMetadata(),
       loadModelsInfo(),
       loadPreferences(),
       loadDownloadedModels()
     ]);
   });
+
+  async function loadModelMetadata() {
+    try {
+      // Load all metadata from backend (SINGLE SOURCE OF TRUTH)
+      const [whisperOptions, medllama] = await Promise.all([
+        tauriService.getWhisperModelOptions(),
+        tauriService.getMedLlamaMetadata()
+      ]);
+
+      whisperModelOptions = whisperOptions;
+      medllamaMetadata = medllama;
+
+      // Set default medLlamaUrl if not already set
+      if (!medLlamaUrl && medllama) {
+        medLlamaUrl = medllama.default_url;
+      }
+    } catch (error) {
+      console.error('Failed to load model metadata:', error);
+    }
+  }
 
   async function loadModelsInfo() {
     try {
@@ -97,6 +113,10 @@
     }
   }
 
+  function getWhisperModelInfo(size: WhisperModelSize): WhisperModelMetadata | undefined {
+    return whisperModelOptions.find(opt => opt.value === size);
+  }
+
   async function loadDownloadedModels() {
     try {
       loadingDownloadedModels = true;
@@ -112,14 +132,13 @@
     if (!preferences) return;
 
     try {
-      const whisperUrl = getWhisperModelUrl(size);
-      const whisperFilename = `whisper-${size}.en.gguf`;
+      const whisperInfo = getWhisperModelInfo(size);
 
       // Update preferences immediately
       const newPreferences: ModelPreferences = {
         whisper_model_size: size,
-        whisper_model_url: whisperUrl,
-        whisper_model_filename: whisperFilename,
+        whisper_model_url: whisperInfo?.url || '',
+        whisper_model_filename: whisperInfo?.file_name || `whisper-${size}.en.gguf`,
         med_llama_url: preferences.med_llama_url,
         med_llama_filename: preferences.med_llama_filename,
         updated_at: new Date().toISOString()
@@ -174,10 +193,12 @@
       downloadingModel = true;
       downloadProgress = 'Downloading Whisper model...';
 
-      const whisperUrl = getWhisperModelUrl(selectedWhisperSize);
-      const whisperFilename = `whisper-${selectedWhisperSize}.en.gguf`;
+      const whisperInfo = getWhisperModelInfo(selectedWhisperSize);
+      if (!whisperInfo) {
+        throw new Error('Whisper model information not available');
+      }
 
-      await tauriService.downloadCustomModel(whisperUrl, whisperFilename);
+      await tauriService.downloadCustomModel(whisperInfo.url, whisperInfo.file_name);
 
       downloadProgress = 'Download complete!';
       successMessage = `Whisper ${selectedWhisperSize} model downloaded successfully!`;
@@ -204,7 +225,7 @@
       downloadingModel = true;
       downloadProgress = 'Downloading MedLlama model...';
 
-      await tauriService.downloadCustomModel(medLlamaUrl, 'med_llama.gguf');
+      await tauriService.downloadCustomModel(medLlamaUrl, medllamaMetadata?.file_name || 'med_llama.gguf');
 
       downloadProgress = 'Download complete!';
       successMessage = 'MedLlama model downloaded successfully!';
@@ -247,17 +268,6 @@
       console.error('Failed to delete model:', err);
       preferencesError = err instanceof Error ? err.message : 'Failed to delete model';
     }
-  }
-
-  function getWhisperModelUrl(size: WhisperModelSize): string {
-    const urls = {
-      tiny: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin',
-      base: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin',
-      small: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin',
-      medium: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin',
-      large: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin'
-    };
-    return urls[size];
   }
 
   function handleLogout() {

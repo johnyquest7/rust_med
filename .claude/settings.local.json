@@ -16,7 +16,8 @@
       "Bash(node:*)",
       "Bash(claude --version)",
       "Bash(/Users/alexledger/.config/superpowers/skills/skills/using-skills/find-skills \"debugging\")",
-      "Read(//Users/alexledger/.config/superpowers/skills/skills/debugging/systematic-debugging/**)"
+      "Read(//Users/alexledger/.config/superpowers/skills/skills/debugging/systematic-debugging/**)",
+      "Bash(/Users/alexledger/.config/superpowers/skills/skills/using-skills/find-skills \"refactoring\")"
     ],
     "deny": []
   }

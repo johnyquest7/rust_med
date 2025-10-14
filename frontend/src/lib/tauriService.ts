@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest, ModelInfo, ModelPreferences, DownloadedModel } from '$lib/types';
+import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest, ModelInfo, ModelPreferences, DownloadedModel, WhisperModelMetadata, RuntimeBinaryMetadata, MedLlamaModelMetadata } from '$lib/types';
 import { authContext } from '$lib/hooks/auth-context.svelte.js';
 
 declare global {
@@ -201,6 +201,19 @@ class TauriService {
 
   async downloadCustomModel(url: string, filename: string): Promise<string> {
     return await this.ensureTauri().core.invoke('download_custom_model', { url, filename });
+  }
+
+  // Model metadata methods (SINGLE SOURCE OF TRUTH from backend)
+  async getWhisperModelOptions(): Promise<WhisperModelMetadata[]> {
+    return await this.ensureTauri().core.invoke('get_whisper_model_options_command');
+  }
+
+  async getRuntimeBinaries(): Promise<RuntimeBinaryMetadata[]> {
+    return await this.ensureTauri().core.invoke('get_runtime_binaries_command');
+  }
+
+  async getMedLlamaMetadata(): Promise<MedLlamaModelMetadata> {
+    return await this.ensureTauri().core.invoke('get_medllama_metadata_command');
   }
 }
 

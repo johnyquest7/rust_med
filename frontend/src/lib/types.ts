@@ -166,3 +166,47 @@ export interface DownloadedModel {
   /** Full path to the model file */
   path: string;
 }
+
+/**
+ * Whisper model metadata from backend
+ */
+export interface WhisperModelMetadata {
+  /** Value identifier (e.g., "tiny", "base") */
+  value: string;
+  /** Display label */
+  label: string;
+  /** Size in megabytes */
+  size: number;
+  /** Download URL */
+  url: string;
+  /** Filename */
+  file_name: string;
+}
+
+/**
+ * Runtime binary metadata
+ */
+export interface RuntimeBinaryMetadata {
+  /** Display name */
+  name: string;
+  /** Download URL */
+  url: string;
+  /** Filename */
+  file_name: string;
+  /** Size in megabytes */
+  size_mb: number;
+}
+
+/**
+ * MedLlama model metadata
+ */
+export interface MedLlamaModelMetadata {
+  /** Display name */
+  name: string;
+  /** Default download URL */
+  default_url: string;
+  /** Filename */
+  file_name: string;
+  /** Size in megabytes */
+  size_mb: number;
+}

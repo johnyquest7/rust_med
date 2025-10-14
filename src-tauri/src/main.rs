@@ -1378,6 +1378,24 @@ async fn download_custom_model(
     }
 }
 
+/// Get all available Whisper model options with metadata
+#[tauri::command]
+async fn get_whisper_model_options_command() -> Result<Vec<WhisperModelMetadata>, String> {
+    Ok(get_whisper_model_options())
+}
+
+/// Get runtime binaries metadata
+#[tauri::command]
+async fn get_runtime_binaries_command() -> Result<Vec<RuntimeBinaryMetadata>, String> {
+    Ok(get_runtime_binaries())
+}
+
+/// Get MedLlama model metadata
+#[tauri::command]
+async fn get_medllama_metadata_command() -> Result<MedLlamaModelMetadata, String> {
+    Ok(get_medllama_metadata())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -1407,7 +1425,10 @@ fn main() {
             save_model_preferences_command,
             list_downloaded_models,
             delete_model_file,
-            download_custom_model
+            download_custom_model,
+            get_whisper_model_options_command,
+            get_runtime_binaries_command,
+            get_medllama_metadata_command
         ])
         .setup(|app| {
             let resource_dir = app.path().resource_dir().expect("failed to get resource directory");

@@ -6,7 +6,7 @@
   import { Input } from '$lib/components/ui/input';
   import * as Select from '$lib/components/ui/select';
   import { tauriService } from '$lib/tauriService';
-  import type { WhisperModelSize } from '$lib/types';
+  import type { WhisperModelSize, WhisperModelMetadata, RuntimeBinaryMetadata, MedLlamaModelMetadata } from '$lib/types';
   import Download from '@lucide/svelte/icons/download';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
   import XCircle from '@lucide/svelte/icons/x-circle';
@@ -44,22 +44,41 @@
 
   // User preferences
   let selectedWhisperSize: WhisperModelSize = $state('tiny');
-  let medLlamaUrl = $state('https://huggingface.co/garcianacho/MedLlama-2-7B-GGUF/resolve/main/MedLlama-2-7B.q4_K_S.gguf?download=true');
+  let medLlamaUrl = $state('');
 
-  // Whisper model options
-  const whisperModelOptions = [
-    { value: 'tiny', label: 'Tiny (141 MB) - Fastest', size: 141 },
-    { value: 'base', label: 'Base (142 MB) - Fast', size: 142 },
-    { value: 'small', label: 'Small (466 MB) - Balanced', size: 466 },
-    { value: 'medium', label: 'Medium (1.5 GB) - Accurate', size: 1500 },
-    { value: 'large', label: 'Large (3.1 GB) - Most Accurate', size: 3100 }
-  ];
+  // Model metadata from backend (SINGLE SOURCE OF TRUTH)
+  let whisperModelOptions = $state<WhisperModelMetadata[]>([]);
+  let runtimeBinaries = $state<RuntimeBinaryMetadata[]>([]);
+  let medllamaMetadata = $state<MedLlamaModelMetadata | null>(null);
 
   $effect(() => {
     setupProgressListener();
+    loadModelMetadata();
     loadModelPreferences();
     loadModels();
   });
+
+  async function loadModelMetadata() {
+    try {
+      // Load all metadata from backend (SINGLE SOURCE OF TRUTH)
+      const [whisperOptions, binaries, medllama] = await Promise.all([
+        tauriService.getWhisperModelOptions(),
+        tauriService.getRuntimeBinaries(),
+        tauriService.getMedLlamaMetadata()
+      ]);
+
+      whisperModelOptions = whisperOptions;
+      runtimeBinaries = binaries;
+      medllamaMetadata = medllama;
+
+      // Set default medLlamaUrl if not already set
+      if (!medLlamaUrl && medllama) {
+        medLlamaUrl = medllama.default_url;
+      }
+    } catch (error) {
+      console.error('Failed to load model metadata:', error);
+    }
+  }
 
   async function loadModelPreferences() {
     try {
@@ -72,46 +91,45 @@
     }
   }
 
-  function getWhisperModelUrl(size: WhisperModelSize): string {
-    const urls = {
-      tiny: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin',
-      base: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin',
-      small: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin',
-      medium: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin',
-      large: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin'
-    };
-    return urls[size];
+  function getWhisperModelInfo(size: WhisperModelSize): WhisperModelMetadata | undefined {
+    return whisperModelOptions.find(opt => opt.value === size);
   }
 
   function buildModelsList(): ModelDownloadInfo[] {
-    const whisperOption = whisperModelOptions.find(opt => opt.value === selectedWhisperSize);
+    const whisperOption = getWhisperModelInfo(selectedWhisperSize);
+    const models: ModelDownloadInfo[] = [];
 
-    return [
-      {
-        name: 'Whisperfile (Runtime)',
-        url: 'https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile',
-        file_name: 'whisperfile',
-        size_mb: 50
-      },
-      {
-        name: 'Llamafile (Runtime)',
-        url: 'https://github.com/Mozilla-Ocho/llamafile/releases/download/0.9.3/llamafile-0.9.3',
-        file_name: 'llamafile',
-        size_mb: 5
-      },
-      {
+    // Add runtime binaries
+    for (const binary of runtimeBinaries) {
+      models.push({
+        name: binary.name,
+        url: binary.url,
+        file_name: binary.file_name,
+        size_mb: binary.size_mb
+      });
+    }
+
+    // Add selected Whisper model
+    if (whisperOption) {
+      models.push({
         name: `Whisper ${selectedWhisperSize.charAt(0).toUpperCase() + selectedWhisperSize.slice(1)}`,
-        url: getWhisperModelUrl(selectedWhisperSize),
-        file_name: `whisper-${selectedWhisperSize}.en.gguf`,
-        size_mb: whisperOption?.size || 141
-      },
-      {
-        name: 'MedLlama Model',
-        url: medLlamaUrl,
-        file_name: 'med_llama.gguf',
-        size_mb: 770.0,
-      }
-    ];
+        url: whisperOption.url,
+        file_name: whisperOption.file_name,
+        size_mb: whisperOption.size
+      });
+    }
+
+    // Add MedLlama model
+    if (medllamaMetadata) {
+      models.push({
+        name: medllamaMetadata.name,
+        url: medLlamaUrl || medllamaMetadata.default_url,
+        file_name: medllamaMetadata.file_name,
+        size_mb: medllamaMetadata.size_mb
+      });
+    }
+
+    return models;
   }
 
   async function loadModels() {
@@ -164,13 +182,16 @@
     isDownloading = true;
 
     try {
+      // Get whisper model info from metadata
+      const whisperInfo = getWhisperModelInfo(selectedWhisperSize);
+
       // Save user preferences before downloading
       await tauriService.saveModelPreferences({
         whisper_model_size: selectedWhisperSize,
-        whisper_model_url: getWhisperModelUrl(selectedWhisperSize),
-        whisper_model_filename: `whisper-${selectedWhisperSize}.en.gguf`,
+        whisper_model_url: whisperInfo?.url || '',
+        whisper_model_filename: whisperInfo?.file_name || `whisper-${selectedWhisperSize}.en.gguf`,
         med_llama_url: medLlamaUrl,
-        med_llama_filename: 'med_llama.gguf',
+        med_llama_filename: medllamaMetadata?.file_name || 'med_llama.gguf',
         updated_at: new Date().toISOString()
       });
     } catch (error) {
@@ -288,16 +309,19 @@
 
   async function handleWhisperModelChange() {
     try {
+      // Get whisper model info from metadata
+      const whisperInfo = getWhisperModelInfo(selectedWhisperSize);
+
       // Save the new preference immediately
       await tauriService.saveModelPreferences({
         whisper_model_size: selectedWhisperSize,
-        whisper_model_url: getWhisperModelUrl(selectedWhisperSize),
-        whisper_model_filename: `whisper-${selectedWhisperSize}.en.gguf`,
+        whisper_model_url: whisperInfo?.url || '',
+        whisper_model_filename: whisperInfo?.file_name || `whisper-${selectedWhisperSize}.en.gguf`,
         med_llama_url: medLlamaUrl,
-        med_llama_filename: 'med_llama.gguf',
+        med_llama_filename: medllamaMetadata?.file_name || 'med_llama.gguf',
         updated_at: new Date().toISOString()
       });
-      
+
       // Reload models with the new selection
       await loadModels();
     } catch (error) {
@@ -307,16 +331,19 @@
 
   async function handleMedLlamaUrlChange() {
     try {
+      // Get whisper model info from metadata
+      const whisperInfo = getWhisperModelInfo(selectedWhisperSize);
+
       // Save the new preference immediately
       await tauriService.saveModelPreferences({
         whisper_model_size: selectedWhisperSize,
-        whisper_model_url: getWhisperModelUrl(selectedWhisperSize),
-        whisper_model_filename: `whisper-${selectedWhisperSize}.en.gguf`,
+        whisper_model_url: whisperInfo?.url || '',
+        whisper_model_filename: whisperInfo?.file_name || `whisper-${selectedWhisperSize}.en.gguf`,
         med_llama_url: medLlamaUrl,
-        med_llama_filename: 'med_llama.gguf',
+        med_llama_filename: medllamaMetadata?.file_name || 'med_llama.gguf',
         updated_at: new Date().toISOString()
       });
-      
+
       // Reload models with the new selection
       await loadModels();
     } catch (error) {
