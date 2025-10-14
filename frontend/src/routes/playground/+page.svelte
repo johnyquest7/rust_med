@@ -209,9 +209,51 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
             id="transcript"
             bind:value={transcript}
             placeholder="Enter the doctor-patient conversation transcript here..."
-            rows={12}
+            rows={8}
             class="resize-none"
           />
+        </div>
+
+        <!-- Sample Transcripts -->
+        <div class="space-y-2">
+          <Label>Sample Transcripts</Label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onclick={() => transcript = sampleTranscripts.routine}
+              class="w-full text-left justify-start text-xs"
+            >
+              Routine Checkup
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onclick={() => transcript = sampleTranscripts.chestPain}
+              class="w-full text-left justify-start text-xs"
+            >
+              Chest Pain Visit
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onclick={() => transcript = sampleTranscripts.diabetes}
+              class="w-full text-left justify-start text-xs"
+            >
+              Diabetes Follow-up
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onclick={() => transcript = sampleTranscripts.pediatric}
+              class="w-full text-left justify-start text-xs"
+            >
+              Pediatric Visit
+            </Button>
+          </div>
         </div>
 
         <div class="flex gap-2">
@@ -292,65 +334,4 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
       </CardContent>
     </Card>
   </div>
-
-  <!-- Sample Transcripts -->
-  <Card class="mt-6">
-    <CardHeader>
-      <CardTitle>Sample Transcripts</CardTitle>
-      <CardDescription>
-        Click on any sample to load it into the input field
-      </CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="space-y-2">
-          <h4 class="font-medium">Sample 1: Routine Checkup</h4>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onclick={() => transcript = sampleTranscripts.routine}
-            class="w-full text-left justify-start"
-          >
-            Load Routine Checkup
-          </Button>
-        </div>
-        
-        <div class="space-y-2">
-          <h4 class="font-medium">Sample 2: Chest Pain</h4>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onclick={() => transcript = sampleTranscripts.chestPain}
-            class="w-full text-left justify-start"
-          >
-            Load Chest Pain Visit
-          </Button>
-        </div>
-        
-        <div class="space-y-2">
-          <h4 class="font-medium">Sample 3: Diabetes Follow-up</h4>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onclick={() => transcript = sampleTranscripts.diabetes}
-            class="w-full text-left justify-start"
-          >
-            Load Diabetes Follow-up
-          </Button>
-        </div>
-        
-        <div class="space-y-2">
-          <h4 class="font-medium">Sample 4: Pediatric Visit</h4>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onclick={() => transcript = sampleTranscripts.pediatric}
-            class="w-full text-left justify-start"
-          >
-            Load Pediatric Visit
-          </Button>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
 </div>
