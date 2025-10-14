@@ -121,7 +121,7 @@ pub fn get_required_models() -> Vec<ModelDownloadInfo> {
             name: "MedLlama Model (Medical Notes)".to_string(),
             url: "https://huggingface.co/Johnyquest7/med_llm_small/resolve/main/med_llama.gguf".to_string(),
             file_name: "med_llama.gguf".to_string(),
-            size_mb: 807.7,
+            size_mb: 770.0,
         },
     ]
 }
@@ -156,7 +156,7 @@ pub fn get_required_models_with_preferences(preferences: &ModelPreferences) -> V
             name: "MedLlama Model (Medical Notes)".to_string(),
             url: preferences.med_llama_url.clone(),
             file_name: preferences.med_llama_filename.clone(),
-            size_mb: 3800.0, // Approximate size for MedLlama
+            size_mb: 770.0, // Approximate size for MedLlama
         },
     ]
 }
@@ -369,7 +369,7 @@ pub async fn download_model(
     // If file already exists, skip download
     if target_path.exists() {
         let _ = app.emit("download-progress", DownloadProgress {
-            file_name: model.name.clone(),
+            file_name: model.file_name.clone(),
             downloaded_bytes: 0,
             total_bytes: Some((model.size_mb * 1024.0 * 1024.0) as u64),
             percentage: 100.0,
@@ -404,7 +404,7 @@ pub async fn download_model(
 
     // Emit initial progress
     let _ = app.emit("download-progress", DownloadProgress {
-        file_name: model.name.clone(),
+        file_name: model.file_name.clone(),
         downloaded_bytes: 0,
         total_bytes: total_size,
         percentage: 0.0,
@@ -426,7 +426,7 @@ pub async fn download_model(
         // Emit progress every 1MB or so to avoid overwhelming the frontend
         if downloaded % (1024 * 1024) < 8192 || percentage >= 100.0 {
             let _ = app.emit("download-progress", DownloadProgress {
-                file_name: model.name.clone(),
+                file_name: model.file_name.clone(),
                 downloaded_bytes: downloaded,
                 total_bytes: total_size,
                 percentage,
@@ -455,7 +455,7 @@ pub async fn download_model(
 
     // Emit completion
     let _ = app.emit("download-progress", DownloadProgress {
-        file_name: model.name.clone(),
+        file_name: model.file_name.clone(),
         downloaded_bytes: downloaded,
         total_bytes: total_size,
         percentage: 100.0,

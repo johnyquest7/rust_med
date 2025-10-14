@@ -109,7 +109,7 @@
         name: 'MedLlama Model',
         url: medLlamaUrl,
         file_name: 'med_llama.gguf',
-        size_mb: 3800
+        size_mb: 770.0,
       }
     ];
   }
