@@ -20,5 +20,6 @@
       "Bash(/Users/alexledger/.config/superpowers/skills/skills/using-skills/find-skills \"refactoring\")"
     ],
     "deny": []
-  }
+  },
+  "spinnerTipsEnabled": false
 }

@@ -111,7 +111,7 @@ class TauriService {
     return result;
   }
 
-  async deleteNote(noteId: string): Promise<{ success: boolean; error: string | null }> {
+  async deleteNote(noteId: string): Promise<boolean> {
     return await this.ensureTauri().core.invoke('delete_patient_note', { noteId: noteId });
   }
 
