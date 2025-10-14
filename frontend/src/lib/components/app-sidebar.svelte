@@ -29,11 +29,11 @@
       url: '/notes',
       icon: FileText
     },
-    {
-      title: 'Playground',
-      url: '/playground',
-      icon: Play
-    },
+    // {
+    //   title: 'Playground',
+    //   url: '/playground',
+    //   icon: Play
+    // },
     {
       title: 'Profile',
       url: '/profile',
