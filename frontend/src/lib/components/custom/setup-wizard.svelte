@@ -88,12 +88,6 @@
 
     return [
       {
-        name: `Whisper ${selectedWhisperSize.charAt(0).toUpperCase() + selectedWhisperSize.slice(1)}`,
-        url: getWhisperModelUrl(selectedWhisperSize),
-        file_name: `whisper-${selectedWhisperSize}.en.gguf`,
-        size_mb: whisperOption?.size || 141
-      },
-      {
         name: 'Whisperfile (Runtime)',
         url: 'https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile',
         file_name: 'whisperfile',
@@ -106,7 +100,13 @@
         size_mb: 5
       },
       {
-        name: 'MedLlama',
+        name: `Whisper ${selectedWhisperSize.charAt(0).toUpperCase() + selectedWhisperSize.slice(1)}`,
+        url: getWhisperModelUrl(selectedWhisperSize),
+        file_name: `whisper-${selectedWhisperSize}.en.gguf`,
+        size_mb: whisperOption?.size || 141
+      },
+      {
+        name: 'MedLlama Model',
         url: medLlamaUrl,
         file_name: 'med_llama.gguf',
         size_mb: 3800
@@ -366,7 +366,7 @@
 
         <!-- Models List -->
         <div class="space-y-3">
-          <h3 class="text-sm font-medium">Required Models:</h3>
+          <h3 class="text-sm font-medium">AI Models</h3>
           {#each models as modelStatus, index}
             <div class="rounded-lg border p-4">
               <div class="space-y-3">
@@ -428,7 +428,7 @@
                         type="url"
                         bind:value={medLlamaUrl}
                         placeholder="https://huggingface.co/..."
-                        class="font-mono text-xs h-8"
+                        class="text-xs"
                         onchange={handleMedLlamaUrlChange}
                       />
                       <p class="text-xs text-muted-foreground">
@@ -458,7 +458,7 @@
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex items-center justify-between border-t pt-4">
+        <div class="flex items-center justify-between pt-4">
           <div class="text-sm text-muted-foreground text-balance">
             {#if isDownloading}
               Downloading models... This may take several minutes.
@@ -467,7 +467,7 @@
             {:else if hasFailedDownloads()}
               Some downloads failed. You can retry failed downloads or continue with available models.
             {:else}
-              Configure your preferred models above, then click "Start Download" to begin setup.
+              {''}
             {/if}
           </div>
           <div class="flex gap-2">
@@ -486,7 +486,7 @@
                 Complete
               {:else}
                 <Download class="mr-2 h-4 w-4" />
-                Start Download
+                  Download Models
               {/if}
             </Button>
           </div>
