@@ -561,12 +561,7 @@ async fn generate_medical_note(
 
     // Combine system and user prompts with proper chat template formatting
     let prompt = format!(
-        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-{system_prompt}
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-{user_prompt}
-<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-{assistant_start}",
+        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>{system_prompt}<|eot_id|><|start_header_id|>user<|end_header_id|>{user_prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>{assistant_start}",
         system_prompt = system_prompt,
         user_prompt = user_prompt,
         assistant_start = assistant_start
@@ -583,15 +578,15 @@ async fn generate_medical_note(
     cmd.current_dir(&project_root)
         .args([
             "-m", &model_path.to_string_lossy(),
-            "--temp", "0.2",           // Low temp for consistent output
+            "--temp", constants::TEMPERATURE,           // Low temp for consistent output
             "--top-p", "0.95",         
-            "--top-k", "30",           
-            "--repeat-penalty", "1.05", // Prevent repetition
-            "-n", "800",               // Limit output length
-            "--threads", "4",
-            "--ctx-size", "4096",      
+            // "--top-k", "30",           
+            // "--repeat-penalty", "1.05", // Prevent repetition
+            "-n", "4096",               // Limit output length
+            // "--threads", "4",
+            // "--ctx-size", "4096",      
             "--no-display-prompt",     // Don't echo prompt
-            "--batch-size", "512",
+            // "--batch-size", "512",
             "--log-disable",           // Disable logging
             "-p", &prompt
         ])
