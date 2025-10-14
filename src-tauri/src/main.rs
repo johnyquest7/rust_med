@@ -14,6 +14,7 @@ use std::process::Stdio;
 use rusqlite::Connection;
 
 mod auth;
+mod constants;
 mod db;
 mod downloads;
 

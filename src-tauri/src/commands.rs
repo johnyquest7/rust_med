@@ -4,6 +4,7 @@ use tauri_plugin_shell::ShellExt;
 use std::sync::Mutex;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use crate::constants::{MEDICAL_NOTE_PROMPT, TEMPERATURE};
 
 #[derive(Default)]
 pub struct AppState {
@@ -142,10 +143,7 @@ pub async fn generate_medical_note(
     let llamafile_path = resource_dir.join("binaries").join(llamafile_name);
     let model_path = resource_dir.join("binaries").join("models").join("med_llama.gguf");
 
-    let prompt = format!(
-        "Given the following doctor-patient conversation transcript, create a concise medical note in SOAP format:\n\nTRANSCRIPT:\n{}\n\nPlease provide a well-structured medical note with:\n- Subjective: Patient's chief complaint and symptoms\n- Objective: Observable findings and vital signs if mentioned\n- Assessment: Clinical impression or diagnosis\n- Plan: Treatment plan and follow-up instructions\n\nMEDICAL NOTE:",
-        transcript
-    );
+    let prompt = MEDICAL_NOTE_PROMPT.replace("{transcript}", &transcript);
 
     // Execute llamafile as sidecar
     let output = app
@@ -153,7 +151,7 @@ pub async fn generate_medical_note(
         .command(llamafile_path)
         .args([
             "-m", &model_path.to_string_lossy(),
-            "--temp", "0.3",
+            "--temp", TEMPERATURE,
             "--no-display-prompt",
             "-p", &prompt
         ])
