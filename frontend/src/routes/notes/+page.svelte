@@ -288,11 +288,11 @@
 
 <!-- Transcript Dialog -->
 <Dialog.Root bind:open={isTranscriptOpen}>
-  <Dialog.Content class="max-h-[80vh] !max-w-[900px] sm:!max-w-[900px]">
+  <Dialog.Content class="flex max-h-[90vh] w-[95vw] !max-w-[900px] flex-col overflow-hidden">
     <Dialog.Header>
       <Dialog.Title>Transcript</Dialog.Title>
     </Dialog.Header>
-    <div class="mt-4 max-h-[60vh] overflow-y-auto">
+    <div class="flex-1 overflow-y-auto">
       <Textarea readonly value={selectedNote?.transcript || ''} class="min-h-[400px] resize-none" />
     </div>
     <Dialog.Footer>
