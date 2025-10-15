@@ -45,7 +45,6 @@
   let models = $state<ModelStatus[]>([]);
   let isDownloading = $state(false);
   let setupComplete = $state(false);
-  let currentDownloadingIndex = $state(-1);
 
   // User preferences
   let selectedWhisperSize: WhisperModelSize = $state('tiny');
@@ -397,7 +396,7 @@
         <!-- Models List -->
         <div class="space-y-3">
           <h3 class="text-sm font-medium">AI Models</h3>
-          {#each models as modelStatus, index}
+          {#each models as modelStatus, index (modelStatus.name)}
             <div class="rounded-lg border p-4">
               <div class="space-y-3">
                 <!-- Model Header -->
@@ -439,7 +438,7 @@
                             'Select model size'}
                         </Select.Trigger>
                         <Select.Content>
-                          {#each whisperModelOptions as option}
+                          {#each whisperModelOptions as option (option.value)}
                             <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
                           {/each}
                         </Select.Content>

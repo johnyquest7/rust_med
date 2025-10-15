@@ -11,7 +11,6 @@
   import * as Tabs from '$lib/components/ui/tabs';
   import { tauriService } from '$lib/tauriService';
   import type {
-    ModelInfo,
     ModelPreferences,
     WhisperModelSize,
     DownloadedModel,
@@ -39,9 +38,6 @@
   let error = $derived(authState.error);
 
   // Model information state
-  let modelsInfo: ModelInfo[] = $state([]);
-  let loadingModels = $state(true);
-  let modelsError: string | null = $state(null);
 
   // Model preferences state
   let preferences: ModelPreferences | null = $state(null);
@@ -160,34 +156,6 @@
     }
   }
 
-  async function handleSelectMedLlamaUrl(url: string) {
-    if (!preferences) return;
-
-    try {
-      // Update preferences immediately
-      const newPreferences: ModelPreferences = {
-        whisper_model_size: preferences.whisper_model_size,
-        whisper_model_url: preferences.whisper_model_url,
-        whisper_model_filename: preferences.whisper_model_filename,
-        med_llama_url: url,
-        med_llama_filename: preferences.med_llama_filename,
-        updated_at: new Date().toISOString()
-      };
-
-      await tauriService.saveModelPreferences(newPreferences);
-      preferences = newPreferences;
-      medLlamaUrl = url;
-      successMessage = 'MedLlama model URL updated';
-
-      // Clear success message after 2 seconds
-      setTimeout(() => {
-        successMessage = '';
-      }, 2000);
-    } catch (err) {
-      console.error('Failed to update MedLlama URL:', err);
-      preferencesError = err instanceof Error ? err.message : 'Failed to update preference';
-    }
-  }
 
   async function handleDownloadWhisperModel() {
     try {
@@ -273,19 +241,13 @@
 
   function handleLogout() {
     auth.logout();
-    goto('/');
+    goto('/', { replaceState: true });
   }
 
   function handleClearError() {
     auth.clearError();
   }
 
-  function formatFileSize(sizeMb: number): string {
-    if (sizeMb >= 1024) {
-      return `${(sizeMb / 1024).toFixed(2)} GB`;
-    }
-    return `${sizeMb.toFixed(0)} MB`;
-  }
 
   function formatBytes(bytes: number): string {
     const mb = bytes / (1024 * 1024);
@@ -395,7 +357,7 @@
                   </p>
 
                   <div class="space-y-3">
-                    {#each whisperModelOptions as option}
+                    {#each whisperModelOptions as option (option.value)}
                       {@const isDownloaded = downloadedModels.some(
                         (m) => m.filename === `whisper-${option.value}.en.gguf`
                       )}
@@ -456,7 +418,7 @@
                             'Select model size'}
                         </Select.Trigger>
                         <Select.Content>
-                          {#each whisperModelOptions as option}
+                          {#each whisperModelOptions as option (option.value)}
                             <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
                           {/each}
                         </Select.Content>
@@ -542,7 +504,7 @@
                     </div>
                   {:else}
                     <div class="space-y-2">
-                      {#each downloadedModels as model}
+                      {#each downloadedModels as model (model.filename)}
                         <div class="flex items-center justify-between rounded-lg border p-3">
                           <div class="flex-1">
                             <p class="font-mono text-sm font-medium">{model.filename}</p>

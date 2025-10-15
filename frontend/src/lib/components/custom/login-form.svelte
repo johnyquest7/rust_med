@@ -22,10 +22,10 @@
   // Load username from auth file on component mount
   async function loadUsername() {
     try {
-      if (!browser || typeof (window as any).__TAURI__ === 'undefined') {
+      if (!browser || typeof (window as unknown as { __TAURI__?: unknown }).__TAURI__ === 'undefined') {
         return;
       }
-      const response: AuthResponse = await (window as any).__TAURI__.core.invoke('get_user_info_command');
+      const response: AuthResponse = await (window as unknown as { __TAURI__: { core: { invoke: (cmd: string) => Promise<AuthResponse> } } }).__TAURI__.core.invoke('get_user_info_command');
       if (response.success && response.user) {
         username = response.user.username;
       }

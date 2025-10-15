@@ -156,7 +156,7 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
       setTimeout(() => {
         copied = false;
       }, 2000);
-    } catch (err) {
+    } catch {
       toast.error('Failed to copy to clipboard');
     }
   }
