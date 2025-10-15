@@ -40,6 +40,10 @@
   // Processing state
   let isProcessing = $state(false);
   let processingStage = $state<'transcribing' | 'generating' | 'saving' | 'complete' | null>(null);
+  let processingSuccess = $state(false);
+  
+  // Status type for UI feedback
+  let statusType = $state<'info' | 'success' | 'warning' | 'error'>('info');
 
   // Audio recording state
   let mediaRecorder: MediaRecorder | null = null;
