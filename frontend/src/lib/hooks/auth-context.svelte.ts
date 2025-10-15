@@ -1,13 +1,11 @@
 import type {
   User,
-  AuthState,
   RegisterData,
   AuthContext,
   AuthResponse,
   CreateUserRequest,
   AuthenticateRequest
 } from '$lib/types.js';
-import { browser } from '$app/environment';
 import { tauriService } from '$lib/tauriService.js';
 
 /**
@@ -149,16 +147,12 @@ class AuthContextClass implements AuthContext {
     try {
       const storedUser = localStorage.getItem('auth_user');
       if (storedUser) {
-        const user = JSON.parse(storedUser) as User;
-        // Don't restore user without password - user needs to log in again
-        // this.#user = user;
         console.log('Found stored user but password not available - user needs to log in');
-        // Clear stored user to force re-login
         localStorage.removeItem('auth_user');
       }
     } catch (error) {
-      console.error('Failed to initialize auth state:', error);
       // Clear invalid stored data
+      console.error('Failed to initialize auth state:', error);
       localStorage.removeItem('auth_user');
     }
   }
