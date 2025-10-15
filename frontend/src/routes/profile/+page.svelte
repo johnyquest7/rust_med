@@ -399,9 +399,9 @@
                       {@const isDownloaded = downloadedModels.some(
                         (m) => m.filename === `whisper-${option.value}.en.gguf`
                       )}
-                      {@const isActive = preferences.whisper_model_size === option.value}
+                      {@const isActive = preferences.whisper_model_size === (option.value as WhisperModelSize)}
                       <button
-                        onclick={() => isDownloaded && handleSelectWhisperModel(option.value)}
+                        onclick={() => isDownloaded && handleSelectWhisperModel(option.value as WhisperModelSize)}
                         disabled={!isDownloaded}
                         class="flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors {isActive
                           ? 'border-primary bg-primary/5'
