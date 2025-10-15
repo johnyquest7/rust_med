@@ -13,7 +13,9 @@
 </svelte:head>
 
 <AuthProvider>
-  <AuthenticatedLayout {children} />
+  <AuthenticatedLayout>
+    {@render children()}
+  </AuthenticatedLayout>
 </AuthProvider>
 
 <Toaster />
