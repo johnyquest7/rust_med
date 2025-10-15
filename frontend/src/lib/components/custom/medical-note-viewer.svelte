@@ -31,7 +31,8 @@
 
     // SOAP section patterns - each pattern stops at the next section header
     const patterns = {
-      subjective: /(?:^|\n)(?:S:|Subjective:|SUBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:R:|Review:|REVIEW:|O:|Objective:|OBJECTIVE:))/i,
+      subjective:
+        /(?:^|\n)(?:S:|Subjective:|SUBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:R:|Review:|REVIEW:|O:|Objective:|OBJECTIVE:))/i,
       review: /(?:^|\n)(?:R:|Review:|REVIEW:?)\s*([\s\S]*?)(?=\n\s*(?:O:|Objective:|OBJECTIVE:))/i,
       objective: /(?:^|\n)(?:O:|Objective:|OBJECTIVE:?)\s*([\s\S]*?)(?=\n\s*(?:A:|Assessment:|ASSESSMENT:))/i,
       assessment: /(?:^|\n)(?:A:|Assessment:|ASSESSMENT:?)\s*([\s\S]*?)(?=\n\s*(?:P:|Plan:|PLAN:))/i,
@@ -122,21 +123,21 @@
       <Tabs.Root value="subjective" class="w-full">
         <div class="overflow-x-auto">
           <Tabs.List class="inline-flex w-full min-w-max gap-1 sm:grid sm:grid-cols-5">
-            <Tabs.Trigger value="subjective" class="flex-1 whitespace-nowrap text-xs sm:text-sm">Subjective</Tabs.Trigger>
-            <Tabs.Trigger value="objective" class="flex-1 whitespace-nowrap text-xs sm:text-sm">Objective</Tabs.Trigger>
-            <Tabs.Trigger value="assessment" class="flex-1 whitespace-nowrap text-xs sm:text-sm">Assessment</Tabs.Trigger>
-            <Tabs.Trigger value="plan" class="flex-1 whitespace-nowrap text-xs sm:text-sm">Plan</Tabs.Trigger>
-            <Tabs.Trigger value="full" class="flex-1 whitespace-nowrap text-xs sm:text-sm">Full Note</Tabs.Trigger>
+            <Tabs.Trigger value="subjective" class="flex-1 text-xs whitespace-nowrap sm:text-sm"
+              >Subjective</Tabs.Trigger
+            >
+            <Tabs.Trigger value="objective" class="flex-1 text-xs whitespace-nowrap sm:text-sm">Objective</Tabs.Trigger>
+            <Tabs.Trigger value="assessment" class="flex-1 text-xs whitespace-nowrap sm:text-sm"
+              >Assessment</Tabs.Trigger
+            >
+            <Tabs.Trigger value="plan" class="flex-1 text-xs whitespace-nowrap sm:text-sm">Plan</Tabs.Trigger>
+            <Tabs.Trigger value="full" class="flex-1 text-xs whitespace-nowrap sm:text-sm">Full Note</Tabs.Trigger>
           </Tabs.List>
         </div>
         <Tabs.Content value="subjective" class="mt-4">
           <div class="px-0.5">
             {#if soapSections.subjective}
-              <Textarea
-                readonly
-                value={soapSections.subjective}
-                class="h-[180px] resize-none"
-              />
+              <Textarea readonly value={soapSections.subjective} class="h-[180px] resize-none" />
             {:else}
               <div class="flex h-[180px] items-center justify-center rounded-md border">
                 <p class="text-sm text-muted-foreground">No subjective information available.</p>
@@ -147,11 +148,7 @@
         <Tabs.Content value="objective" class="mt-4">
           <div class="px-0.5">
             {#if soapSections.objective}
-              <Textarea
-                readonly
-                value={soapSections.objective}
-                class="h-[180px] resize-none"
-              />
+              <Textarea readonly value={soapSections.objective} class="h-[180px] resize-none" />
             {:else}
               <div class="flex h-[180px] items-center justify-center rounded-md border">
                 <p class="text-sm text-muted-foreground">No objective information available.</p>
@@ -162,11 +159,7 @@
         <Tabs.Content value="assessment" class="mt-4">
           <div class="px-0.5">
             {#if soapSections.assessment}
-              <Textarea
-                readonly
-                value={soapSections.assessment}
-                class="h-[180px] resize-none"
-              />
+              <Textarea readonly value={soapSections.assessment} class="h-[180px] resize-none" />
             {:else}
               <div class="flex h-[180px] items-center justify-center rounded-md border">
                 <p class="text-sm text-muted-foreground">No assessment information available.</p>
@@ -198,5 +191,4 @@
       </div>
     {/if}
   </div>
-
 </div>

@@ -753,8 +753,11 @@ fn clean_llm_output(output: &str) -> String {
     let mut cleaned = result.trim().to_string();
 
     // If the output doesn't start with "S:", add it back (only for SOAP notes)
-    if !cleaned.starts_with("S:") && !cleaned.is_empty() && 
-       !cleaned.contains("Presenting Illness") && !cleaned.contains("History of Presenting Illness") {
+    if !cleaned.starts_with("S:")
+        && !cleaned.is_empty()
+        && !cleaned.contains("Presenting Illness")
+        && !cleaned.contains("History of Presenting Illness")
+    {
         cleaned = format!("S: {}", cleaned);
     }
 

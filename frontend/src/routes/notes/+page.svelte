@@ -39,7 +39,7 @@
 
   async function deleteNote() {
     if (!noteToDelete) return;
-    
+
     // Optimistically remove from UI first
     notes = notes.filter((note) => note.id !== noteToDelete!.id);
 
@@ -230,7 +230,8 @@
   <Dialog.Content class="flex max-h-[90vh] w-[95vw] !max-w-[900px] flex-col overflow-hidden">
     <Dialog.Header>
       <Dialog.Title>
-        {selectedNote?.firstName} {selectedNote?.lastName}
+        {selectedNote?.firstName}
+        {selectedNote?.lastName}
         {#if selectedNote}
           <span class="text-sm font-normal text-muted-foreground">
             - {new Date(selectedNote.createdAt).toLocaleDateString()}
@@ -245,19 +246,11 @@
 
     <Dialog.Footer class="flex justify-between">
       <div class="flex items-center gap-2">
-        <Button
-          variant="outline"
-          onclick={() => (isTranscriptOpen = true)}
-          class="flex items-center gap-2"
-        >
+        <Button variant="outline" onclick={() => (isTranscriptOpen = true)} class="flex items-center gap-2">
           <FileText class="h-4 w-4" />
           View Transcript
         </Button>
-        <Button
-          variant="outline"
-          onclick={() => confirmDelete(selectedNote!)}
-          class="flex items-center gap-2"
-        >
+        <Button variant="outline" onclick={() => confirmDelete(selectedNote!)} class="flex items-center gap-2">
           <Trash2 class="h-4 w-4" />
           Delete Note
         </Button>

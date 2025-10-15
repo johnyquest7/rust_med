@@ -1,5 +1,17 @@
 import { browser } from '$app/environment';
-import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest, ModelInfo, ModelPreferences, DownloadedModel, WhisperModelMetadata, RuntimeBinaryMetadata, MedLlamaModelMetadata } from '$lib/types';
+import type {
+  TauriNote,
+  TauriNoteIn,
+  AuthResponse,
+  CreateUserRequest,
+  AuthenticateRequest,
+  ModelInfo,
+  ModelPreferences,
+  DownloadedModel,
+  WhisperModelMetadata,
+  RuntimeBinaryMetadata,
+  MedLlamaModelMetadata
+} from '$lib/types';
 import { authContext } from '$lib/hooks/auth-context.svelte.js';
 
 declare global {
@@ -106,7 +118,7 @@ class TauriService {
       transcript: note.transcript,
       medicalNote: note.medicalNote
     });
-    
+
     console.log('Create note result:', result);
     return result;
   }

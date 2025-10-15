@@ -1,4 +1,12 @@
-import type { User, AuthState, RegisterData, AuthContext, AuthResponse, CreateUserRequest, AuthenticateRequest } from '$lib/types.js';
+import type {
+  User,
+  AuthState,
+  RegisterData,
+  AuthContext,
+  AuthResponse,
+  CreateUserRequest,
+  AuthenticateRequest
+} from '$lib/types.js';
 import { browser } from '$app/environment';
 import { tauriService } from '$lib/tauriService.js';
 
@@ -114,7 +122,7 @@ class AuthContextClass implements AuthContext {
 
     try {
       const response: AuthResponse = await tauriService.checkAuthStatus();
-      
+
       if (response.success && response.user) {
         this.#user = response.user;
         // Store in localStorage for persistence
