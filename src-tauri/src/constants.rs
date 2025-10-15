@@ -21,7 +21,10 @@ Please format the summary in a clean, simple list format without using markdown 
 "#;
 
 #[allow(dead_code)]
-pub const FULL_MEDICAL_SYSTEM_PROMPT: &str = r#"You are an expert medical transcriptionist. Correct any medical terminology errors that might have happened during transcription before generating the medical note. You convert medical transcript to a structured medical note with these sections in this order: 
+pub const FULL_MEDICAL_SYSTEM_PROMPT: &str = "";
+
+#[allow(dead_code)]
+pub const FULL_MEDICAL_USER_PROMPT_TEMPLATE: &str = r#"You are an expert medical transcriptionist. Correct any medical terminology errors that might have happened during transcription before generating the medical note. You convert medical transcript to a structured medical note with these sections in this order: 
 1. Presenting Illness
 (Bullet point statements of the main problem)
 2. History of Presenting Illness
@@ -48,10 +51,9 @@ Vital Signs (BP, HR, RR, Temp, SpO₂, HT, WT, BMI) - if mentioned in the transc
 12. Labs and Imaging
 (labs, imaging results)
 13. Assessment and Plan 
-(List each diagnoses and treatment plan. No other information needed in this section. Do not generate new diagnoses)"#;
+(List each diagnoses and treatment plan. No other information needed in this section. Do not generate new diagnoses)"
 
-#[allow(dead_code)]
-pub const FULL_MEDICAL_USER_PROMPT_TEMPLATE: &str = r#"Medical transcript:
+Medical transcript:
 {transcript}"#;
 
 #[allow(dead_code)]
