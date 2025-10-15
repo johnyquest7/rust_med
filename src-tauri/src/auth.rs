@@ -1,15 +1,15 @@
+use aes_gcm::aead::{generic_array::GenericArray, Aead};
+use aes_gcm::{Aes256Gcm, KeyInit};
+use argon2::password_hash::{rand_core::OsRng, SaltString};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use base64::{engine::general_purpose, Engine as _};
+use chrono::Utc;
+use rand::Rng;
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use argon2::password_hash::{rand_core::OsRng, SaltString};
-use aes_gcm::{Aes256Gcm, KeyInit};
-use aes_gcm::aead::{Aead, generic_array::GenericArray};
-use rand::Rng;
-use std::fs;
-use chrono::Utc;
-use base64::{Engine as _, engine::general_purpose};
-use rusqlite::Connection;
 
 /// Authentication file structure matching the JSON schema
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,17 +62,17 @@ pub type AuthResult<T> = Result<T, AuthError>;
 pub enum AuthError {
     #[error("File system error: {0}")]
     FileSystem(String),
-    
+
     #[error("Serialization error: {0}")]
     Serialization(String),
-    
+
     #[error("Authentication failed: {0}")]
     #[allow(dead_code)]
     Authentication(String),
-    
+
     #[error("Cryptographic error: {0}")]
     Cryptographic(String),
-    
+
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 }
@@ -133,8 +133,6 @@ pub fn get_auth_file_path() -> PathBuf {
     PathBuf::from("auth.json")
 }
 
-
-
 /// Save the auth file to disk (deprecated - use save_auth_to_db instead)
 #[allow(dead_code)]
 pub fn save_auth_file(auth_path: &PathBuf, auth_file: &AuthFile) -> AuthResult<()> {
@@ -173,7 +171,7 @@ pub fn derive_key_from_password(password: &str, salt: &str) -> AuthResult<Vec<u8
     // Extract the hash bytes (first 32 bytes for AES-256)
     let hash = password_hash.hash.unwrap();
     let hash_bytes = hash.as_bytes();
-    
+
     // Ensure we have at least 32 bytes, pad with zeros if necessary
     let mut key = vec![0u8; 32];
     let copy_len = std::cmp::min(32, hash_bytes.len());
@@ -187,7 +185,8 @@ pub fn encrypt_dek(dek: &[u8], key: &[u8], nonce: &str) -> AuthResult<(String, S
     let key_array: GenericArray<u8, _> = GenericArray::from_slice(key).clone();
     let cipher = Aes256Gcm::new(&key_array);
 
-    let nonce_bytes = general_purpose::STANDARD.decode(nonce)
+    let nonce_bytes = general_purpose::STANDARD
+        .decode(nonce)
         .map_err(|e| AuthError::Cryptographic(format!("Invalid nonce: {}", e)))?;
     let nonce_array: GenericArray<u8, _> = GenericArray::from_slice(&nonce_bytes).clone();
 
@@ -204,11 +203,13 @@ pub fn decrypt_dek(ciphertext: &str, key: &[u8], nonce: &str) -> AuthResult<Vec<
     let key_array: GenericArray<u8, _> = GenericArray::from_slice(key).clone();
     let cipher = Aes256Gcm::new(&key_array);
 
-    let nonce_bytes = general_purpose::STANDARD.decode(nonce)
+    let nonce_bytes = general_purpose::STANDARD
+        .decode(nonce)
         .map_err(|e| AuthError::Cryptographic(format!("Invalid nonce: {}", e)))?;
     let nonce_array: GenericArray<u8, _> = GenericArray::from_slice(&nonce_bytes).clone();
 
-    let ciphertext_bytes = general_purpose::STANDARD.decode(ciphertext)
+    let ciphertext_bytes = general_purpose::STANDARD
+        .decode(ciphertext)
         .map_err(|e| AuthError::Cryptographic(format!("Invalid ciphertext: {}", e)))?;
 
     let dek = cipher
@@ -235,10 +236,14 @@ pub fn verify_password(password: &str, stored_hash: &str) -> AuthResult<bool> {
 pub fn create_user_account(username: String, password: String) -> AuthResult<AuthFile> {
     // Validate input
     if username.trim().is_empty() {
-        return Err(AuthError::InvalidInput("Username cannot be empty".to_string()));
+        return Err(AuthError::InvalidInput(
+            "Username cannot be empty".to_string(),
+        ));
     }
     if password.len() < 8 {
-        return Err(AuthError::InvalidInput("Password must be at least 8 characters".to_string()));
+        return Err(AuthError::InvalidInput(
+            "Password must be at least 8 characters".to_string(),
+        ));
     }
 
     // Generate user ID
@@ -288,7 +293,11 @@ pub fn authenticate_user(auth_file: &AuthFile, password: &str) -> AuthResult<boo
     let derived_key = derive_key_from_password(password, &auth_file.kdf.salt)?;
 
     // Try to decrypt the DEK
-    match decrypt_dek(&auth_file.wrapped_dek.ciphertext, &derived_key, &auth_file.wrapped_dek.nonce) {
+    match decrypt_dek(
+        &auth_file.wrapped_dek.ciphertext,
+        &derived_key,
+        &auth_file.wrapped_dek.nonce,
+    ) {
         Ok(_) => Ok(true),
         Err(_) => Ok(false),
     }
@@ -300,7 +309,11 @@ pub fn get_dek(auth_file: &AuthFile, password: &str) -> AuthResult<Vec<u8>> {
     let derived_key = derive_key_from_password(password, &auth_file.kdf.salt)?;
 
     // Decrypt the DEK
-    decrypt_dek(&auth_file.wrapped_dek.ciphertext, &derived_key, &auth_file.wrapped_dek.nonce)
+    decrypt_dek(
+        &auth_file.wrapped_dek.ciphertext,
+        &derived_key,
+        &auth_file.wrapped_dek.nonce,
+    )
 }
 
 /// Encrypt data using the DEK
@@ -310,7 +323,8 @@ pub fn encrypt_data(data: &str, dek: &[u8]) -> AuthResult<(String, String)> {
 
     // Generate a new nonce for this encryption
     let nonce = generate_nonce()?;
-    let nonce_bytes = general_purpose::STANDARD.decode(&nonce)
+    let nonce_bytes = general_purpose::STANDARD
+        .decode(&nonce)
         .map_err(|e| AuthError::Cryptographic(format!("Invalid nonce: {}", e)))?;
     let nonce_array: GenericArray<u8, _> = GenericArray::from_slice(&nonce_bytes).clone();
 
@@ -327,11 +341,13 @@ pub fn decrypt_data(ciphertext: &str, dek: &[u8], nonce: &str) -> AuthResult<Str
     let key_array: GenericArray<u8, _> = GenericArray::from_slice(dek).clone();
     let cipher = Aes256Gcm::new(&key_array);
 
-    let nonce_bytes = general_purpose::STANDARD.decode(nonce)
+    let nonce_bytes = general_purpose::STANDARD
+        .decode(nonce)
         .map_err(|e| AuthError::Cryptographic(format!("Invalid nonce: {}", e)))?;
     let nonce_array: GenericArray<u8, _> = GenericArray::from_slice(&nonce_bytes).clone();
 
-    let ciphertext_bytes = general_purpose::STANDARD.decode(ciphertext)
+    let ciphertext_bytes = general_purpose::STANDARD
+        .decode(ciphertext)
         .map_err(|e| AuthError::Cryptographic(format!("Invalid ciphertext: {}", e)))?;
 
     let plaintext = cipher
@@ -400,8 +416,9 @@ pub fn save_auth_to_db(conn: &Connection, auth_file: &AuthFile) -> AuthResult<()
 
 /// Load auth file from database
 pub fn load_auth_from_db(conn: &Connection) -> AuthResult<AuthFile> {
-    let auth_data = crate::db::load_auth_data(conn)
-        .map_err(|e| AuthError::FileSystem(format!("Failed to load auth data from database: {}", e)))?;
+    let auth_data = crate::db::load_auth_data(conn).map_err(|e| {
+        AuthError::FileSystem(format!("Failed to load auth data from database: {}", e))
+    })?;
     Ok(db_data_to_auth_file(&auth_data))
 }
 

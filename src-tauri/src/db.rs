@@ -1,7 +1,7 @@
-use rusqlite::{Connection, params};
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Local};
+use rusqlite::{params, Connection};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 /// Database error types
 #[derive(Debug, thiserror::Error)]
@@ -142,29 +142,33 @@ pub fn load_auth_data(conn: &Connection) -> DbResult<AuthData> {
                 kdf_algorithm, kdf_salt, kdf_memory_kib, kdf_iterations, kdf_parallelism,
                 wrapped_dek_algorithm, wrapped_dek_nonce, wrapped_dek_ciphertext,
                 created_at, last_password_change
-         FROM auth WHERE id = 1"
+         FROM auth WHERE id = 1",
     )?;
 
-    let auth_data = stmt.query_row([], |row| {
-        Ok(AuthData {
-            version: row.get(0)?,
-            user_id: row.get(1)?,
-            username: row.get(2)?,
-            kdf_algorithm: row.get(3)?,
-            kdf_salt: row.get(4)?,
-            kdf_memory_kib: row.get(5)?,
-            kdf_iterations: row.get(6)?,
-            kdf_parallelism: row.get(7)?,
-            wrapped_dek_algorithm: row.get(8)?,
-            wrapped_dek_nonce: row.get(9)?,
-            wrapped_dek_ciphertext: row.get(10)?,
-            created_at: row.get(11)?,
-            last_password_change: row.get(12)?,
+    let auth_data = stmt
+        .query_row([], |row| {
+            Ok(AuthData {
+                version: row.get(0)?,
+                user_id: row.get(1)?,
+                username: row.get(2)?,
+                kdf_algorithm: row.get(3)?,
+                kdf_salt: row.get(4)?,
+                kdf_memory_kib: row.get(5)?,
+                kdf_iterations: row.get(6)?,
+                kdf_parallelism: row.get(7)?,
+                wrapped_dek_algorithm: row.get(8)?,
+                wrapped_dek_nonce: row.get(9)?,
+                wrapped_dek_ciphertext: row.get(10)?,
+                created_at: row.get(11)?,
+                last_password_change: row.get(12)?,
+            })
         })
-    }).map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => DbError::NotFound("No auth data found".to_string()),
-        _ => DbError::Sqlite(e),
-    })?;
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                DbError::NotFound("No auth data found".to_string())
+            }
+            _ => DbError::Sqlite(e),
+        })?;
 
     Ok(auth_data)
 }
@@ -205,23 +209,24 @@ pub fn load_all_encrypted_notes(conn: &Connection) -> DbResult<Vec<EncryptedNote
     let mut stmt = conn.prepare(
         "SELECT id, encrypted_data, nonce, created_at
          FROM patient_notes
-         ORDER BY created_at DESC"
+         ORDER BY created_at DESC",
     )?;
 
-    let notes = stmt.query_map([], |row| {
-        let created_at_str: String = row.get(3)?;
-        let created_at = DateTime::parse_from_rfc3339(&created_at_str)
-            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
-            .with_timezone(&Local);
+    let notes = stmt
+        .query_map([], |row| {
+            let created_at_str: String = row.get(3)?;
+            let created_at = DateTime::parse_from_rfc3339(&created_at_str)
+                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
+                .with_timezone(&Local);
 
-        Ok(EncryptedNoteData {
-            id: row.get(0)?,
-            encrypted_data: row.get(1)?,
-            nonce: row.get(2)?,
-            created_at,
-        })
-    })?
-    .collect::<Result<Vec<_>, _>>()?;
+            Ok(EncryptedNoteData {
+                id: row.get(0)?,
+                encrypted_data: row.get(1)?,
+                nonce: row.get(2)?,
+                created_at,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(notes)
 }
@@ -231,35 +236,36 @@ pub fn load_encrypted_note_by_id(conn: &Connection, note_id: &str) -> DbResult<E
     let mut stmt = conn.prepare(
         "SELECT id, encrypted_data, nonce, created_at
          FROM patient_notes
-         WHERE id = ?1"
+         WHERE id = ?1",
     )?;
 
-    let note = stmt.query_row([note_id], |row| {
-        let created_at_str: String = row.get(3)?;
-        let created_at = DateTime::parse_from_rfc3339(&created_at_str)
-            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
-            .with_timezone(&Local);
+    let note = stmt
+        .query_row([note_id], |row| {
+            let created_at_str: String = row.get(3)?;
+            let created_at = DateTime::parse_from_rfc3339(&created_at_str)
+                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?
+                .with_timezone(&Local);
 
-        Ok(EncryptedNoteData {
-            id: row.get(0)?,
-            encrypted_data: row.get(1)?,
-            nonce: row.get(2)?,
-            created_at,
+            Ok(EncryptedNoteData {
+                id: row.get(0)?,
+                encrypted_data: row.get(1)?,
+                nonce: row.get(2)?,
+                created_at,
+            })
         })
-    }).map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => DbError::NotFound(format!("Note not found: {}", note_id)),
-        _ => DbError::Sqlite(e),
-    })?;
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                DbError::NotFound(format!("Note not found: {}", note_id))
+            }
+            _ => DbError::Sqlite(e),
+        })?;
 
     Ok(note)
 }
 
 /// Delete a patient note by ID
 pub fn delete_note_by_id(conn: &Connection, note_id: &str) -> DbResult<bool> {
-    let rows_affected = conn.execute(
-        "DELETE FROM patient_notes WHERE id = ?1",
-        [note_id],
-    )?;
+    let rows_affected = conn.execute("DELETE FROM patient_notes WHERE id = ?1", [note_id])?;
     Ok(rows_affected > 0)
 }
 
@@ -273,8 +279,7 @@ pub fn note_exists(conn: &Connection, note_id: &str) -> DbResult<bool> {
 /// Check if initial setup is completed
 pub fn is_setup_completed(conn: &Connection) -> DbResult<bool> {
     let mut stmt = conn.prepare("SELECT setup_completed FROM setup_status WHERE id = 1")?;
-    let completed: i64 = stmt.query_row([], |row| row.get(0))
-        .unwrap_or(0);
+    let completed: i64 = stmt.query_row([], |row| row.get(0)).unwrap_or(0);
     Ok(completed == 1)
 }
 
@@ -324,22 +329,26 @@ pub fn load_model_preferences(conn: &Connection) -> DbResult<ModelPreferences> {
     let mut stmt = conn.prepare(
         "SELECT whisper_model_size, whisper_model_url, whisper_model_filename,
                 med_llama_url, med_llama_filename, updated_at
-         FROM model_preferences WHERE id = 1"
+         FROM model_preferences WHERE id = 1",
     )?;
 
-    let prefs = stmt.query_row([], |row| {
-        Ok(ModelPreferences {
-            whisper_model_size: row.get(0)?,
-            whisper_model_url: row.get(1)?,
-            whisper_model_filename: row.get(2)?,
-            med_llama_url: row.get(3)?,
-            med_llama_filename: row.get(4)?,
-            updated_at: row.get(5)?,
+    let prefs = stmt
+        .query_row([], |row| {
+            Ok(ModelPreferences {
+                whisper_model_size: row.get(0)?,
+                whisper_model_url: row.get(1)?,
+                whisper_model_filename: row.get(2)?,
+                med_llama_url: row.get(3)?,
+                med_llama_filename: row.get(4)?,
+                updated_at: row.get(5)?,
+            })
         })
-    }).map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => DbError::NotFound("No model preferences found".to_string()),
-        _ => DbError::Sqlite(e),
-    })?;
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                DbError::NotFound("No model preferences found".to_string())
+            }
+            _ => DbError::Sqlite(e),
+        })?;
 
     Ok(prefs)
 }
@@ -355,9 +364,12 @@ pub fn model_preferences_exist(conn: &Connection) -> DbResult<bool> {
 pub fn get_default_model_preferences() -> ModelPreferences {
     ModelPreferences {
         whisper_model_size: "tiny".to_string(),
-        whisper_model_url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin".to_string(),
+        whisper_model_url:
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin".to_string(),
         whisper_model_filename: "whisper-tiny.en.gguf".to_string(),
-        med_llama_url: "https://huggingface.co/Johnyquest7/med_llm_small/resolve/main/med_llama.gguf".to_string(),
+        med_llama_url:
+            "https://huggingface.co/Johnyquest7/med_llm_small/resolve/main/med_llama.gguf"
+                .to_string(),
         med_llama_filename: "med_llama.gguf".to_string(),
         updated_at: chrono::Local::now().to_rfc3339(),
     }
