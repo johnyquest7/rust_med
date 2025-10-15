@@ -1,97 +1,23 @@
 // The r#".."# means string literal raw string
 // This is used to avoid having to escape backslashes in the prompt
 
-// System prompts - define the AI's role and behavior
-// #[allow(dead_code)]
-// pub const SOAP_SYSTEM_PROMPT: &str = r#"
-// You are a clinical documentation assistant trained to create medically accurate SOAP notes from doctor–patient conversation transcripts.
-// Your goal is to produce a SOAP medical note given a transcript of a doctor–patient conversation. Return the SOAP note in XML format.
-
-// -----------------------------
-// GENERAL INSTRUCTIONS
-// -----------------------------
-// - The conversation transcript will be provided inside <transcript>...</transcript> tags.
-// - Correct transcription or terminology errors only when the intended meaning is unambiguous.
-// - Do NOT invent or infer any findings, diagnoses, or plans that are not supported by the transcript.
-// - If the transcript contains little or no medical content, or if you cannot determine any relevant information, output a SOAP note with "[No relevant medical information provided]" in each section.
-// - When a section cannot be completed, write "[No relevant information provided]" for that section.
-// - Maintain the tone and structure of a concise, factual medical record suitable for an EMR.
-// - Use standard clinical phrasing (e.g., "Pt reports...", "No acute distress noted", "Follow-up as needed").
-// - Do not include commentary, reasoning, or conversational filler—output only the SOAP note in XML format.
-// - Do not infer the doctor's instructions if they are not explicitly stated in the transcript.
-
-// -----------------------------
-// SOAP NOTE XML FORMAT
-// -----------------------------
-// Return the SOAP note in the following XML structure:
-// <soap_note>
-//     <subjective>Summarize the patient's reported symptoms, concerns, and relevant history, based strictly on patient statements.</subjective>
-//     <objective>Include only observed or measured findings mentioned in the transcript.</objective>
-//     <assessment>Provide the clinical impression or assessment stated or implied by the provider. Use a numbered list if multiple items.</assessment>
-//     <plan>Outline the treatment or follow-up plan as discussed in the transcript.</plan>
-// </soap_note>
-
-// -----------------------------
-// FEW-SHOT EXAMPLES
-// -----------------------------
-
-// Example 1 — Typical Visit
-// <transcript>
-// Doctor: What brings you in today?
-// Patient: I've been having sharp pain in my lower back since yesterday. It gets worse when I bend over.
-// Doctor: Any numbness or weakness?
-// Patient: No, just pain.
-// Doctor: Any injury or heavy lifting?
-// Patient: I helped move a couch two days ago.
-// Doctor: Does it hurt if you bend over?
-// Patient: Yes, it hurts more.
-// Doctor: I suggest you rest, apply ice, take OTC NSAIDs as needed. Avoid heavy lifting. Follow-up if symptoms persist or worsen.
-// </transcript>
-
-// <soap_note>
-//     <subjective>Pt reports acute lower back pain beginning yesterday after lifting heavy furniture. Denies numbness or weakness.</subjective>
-//     <objective>Pain increases with flexion.</objective>
-//     <assessment>Acute lumbar strain.</assessment>
-//     <plan>Rest, apply ice, take OTC NSAIDs as needed. Avoid heavy lifting. Follow-up if symptoms persist or worsen.</plan>
-// </soap_note>
-
-// ---
-
-// Example 2 — Minimal / Non-medical Transcript
-// <transcript>
-// Good morning doctor
-// </transcript>
-
-// <soap_note>
-//     <subjective>[No relevant medical information provided]</subjective>
-//     <objective>[No relevant medical information provided]</objective>
-//     <assessment>[No relevant medical information provided]</assessment>
-//     <plan>[No relevant medical information provided]</plan>
-// </soap_note>
-// "#;
-
-
 #[allow(dead_code)]
-pub const SOAP_SYSTEM_PROMPT: &str = r#"
-You are a clinical documentation assistant trained to create medically accurate SOAP notes from doctor–patient conversation transcripts.
-Your goal is to respond with a SOAP medical note given a transcript of a doctor–patient conversation. Do not infer anything about the patient or doctor that's not explicitly stated in the transcript.
-
-Respond with the SOAP note in XML format.
-
-<soap_note>
-    <subjective>Summarize the patient's reported symptoms, concerns, and relevant history.</subjective>
-    <objective>Include only observed or measured findings mentioned in the transcript.</objective>
-    <assessment>Provide the clinical impression or assessment stated by the provider.</assessment>
-    <plan>Outline the treatment or follow-up plan as discussed in the transcript.</plan>
-</soap_note>
-"#;
+pub const SOAP_SYSTEM_PROMPT: &str = "";
 
 // User prompt templates - define how user input is formatted
 #[allow(dead_code)]
 pub const SOAP_USER_PROMPT_TEMPLATE: &str = r#"
-<transcript>{transcript}</transcript>
+You are an expert medical professor assisting in the creation of medically accurate SOAP notes.  
+Create a Medical SOAP note from the transcript, following these guidelines:\n    
+Correct any medical terminology errors that might have happened during transcription before generating the SOAP note.\n
+S (Subjective): Summarize the patient's reported symptoms, including chief complaint and relevant history.
+Rely on the patient's statements as the primary source and ensure standardized terminology.\n    
+O (Objective): Include objective findings in the transcripts such as vital signs, physical exam findings, lab results, and imaging.\n    
+A (Assessment): Concise assessment combining subjective and objective data. State the diagnoses and assessment of the diagnoses in a numbered list.\n    
+P (Plan): Outline the treatment plan. Compile the report based solely on the transcript provided.\n    
+Please format the summary in a clean, simple list format without using markdown or bullet points. Use 'S:', 'O:', 'A:', 'P:' directly followed by the text. TRANSCRIPT: \n
 
-Respond with the SOAP note in XML format as specified in the instructions in one response.
+{transcript}
 "#;
 
 #[allow(dead_code)]
@@ -123,7 +49,6 @@ Vital Signs (BP, HR, RR, Temp, SpO₂, HT, WT, BMI) - if mentioned in the transc
 (labs, imaging results)
 13. Assessment and Plan 
 (List each diagnoses and treatment plan. No other information needed in this section. Do not generate new diagnoses)"#;
-
 
 #[allow(dead_code)]
 pub const FULL_MEDICAL_USER_PROMPT_TEMPLATE: &str = r#"Medical transcript:
