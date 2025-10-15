@@ -15,7 +15,8 @@
     WhisperModelSize,
     DownloadedModel,
     WhisperModelMetadata,
-    MedLlamaModelMetadata
+    MedLlamaModelMetadata,
+    ModelInfo
   } from '$lib/types';
   import User from '@lucide/svelte/icons/user';
   import Shield from '@lucide/svelte/icons/shield';
@@ -38,6 +39,9 @@
   let error = $derived(authState.error);
 
   // Model information state
+  let modelsInfo: ModelInfo[] = $state([]);
+  let loadingModels = $state(false);
+  let modelsError: string | null = $state(null);
 
   // Model preferences state
   let preferences: ModelPreferences | null = $state(null);
@@ -297,6 +301,17 @@
             <span class="text-sm font-medium text-gray-600">Account Status</span>
             <Badge variant="default">Active</Badge>
           </div>
+          <Separator />
+          <div class="flex items-center justify-between py-2">
+            <div class="flex items-center space-x-3">
+              <LogOut class="h-4 w-4 text-gray-500" />
+              <div>
+                <p class="text-sm font-medium">Sign Out</p>
+                <p class="text-xs text-gray-500">Sign out of your account</p>
+              </div>
+            </div>
+            <Button variant="destructive" size="sm" onclick={handleLogout}>Sign Out</Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -527,40 +542,6 @@
         </CardContent>
       </Card>
 
-      <!-- Security Settings -->
-      <Card>
-        <CardHeader>
-          <CardTitle class="flex items-center space-x-2">
-            <Shield class="h-5 w-5" />
-            <span>Security Settings</span>
-          </CardTitle>
-          <CardDescription>Manage your account security and privacy settings</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-4">
-          <!-- TODO: changing pasword not implemented -->
-          <!-- <div class="flex items-center justify-between py-2">
-            <div class="flex items-center space-x-3">
-              <Key class="h-4 w-4 text-gray-500" />
-              <div>
-                <p class="text-sm font-medium">Password</p>
-                <p class="text-xs text-gray-500">Last changed 2 months ago</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm">Change Password</Button>
-          </div>
-          <Separator /> -->
-          <div class="flex items-center justify-between py-2">
-            <div class="flex items-center space-x-3">
-              <LogOut class="h-4 w-4 text-gray-500" />
-              <div>
-                <p class="text-sm font-medium">Sign Out</p>
-                <p class="text-xs text-gray-500">Sign out of your account</p>
-              </div>
-            </div>
-            <Button variant="destructive" size="sm" onclick={handleLogout}>Sign Out</Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <!-- Error Display -->
       {#if error}
