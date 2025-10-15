@@ -494,9 +494,7 @@
               All models downloaded successfully!
             {:else if hasFailedDownloads()}
               Some downloads failed. You can retry failed downloads or continue with available models.
-            {:else}
-              
-            {/if}
+            {:else}{/if}
           </div>
           <div class="flex gap-2">
             {#if hasFailedDownloads() && !isDownloading}

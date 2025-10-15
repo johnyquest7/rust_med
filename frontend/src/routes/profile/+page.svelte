@@ -156,7 +156,6 @@
     }
   }
 
-
   async function handleDownloadWhisperModel() {
     try {
       downloadingModel = true;
@@ -247,7 +246,6 @@
   function handleClearError() {
     auth.clearError();
   }
-
 
   function formatBytes(bytes: number): string {
     const mb = bytes / (1024 * 1024);
