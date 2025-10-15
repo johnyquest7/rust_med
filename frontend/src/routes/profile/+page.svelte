@@ -19,7 +19,6 @@
     ModelInfo
   } from '$lib/types';
   import User from '@lucide/svelte/icons/user';
-  import Shield from '@lucide/svelte/icons/shield';
   import LogOut from '@lucide/svelte/icons/log-out';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
   import Loader2 from '@lucide/svelte/icons/loader-2';
