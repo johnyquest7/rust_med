@@ -39,20 +39,22 @@
 
   async function deleteNote() {
     if (!noteToDelete) return;
+    
+    // Optimistically remove from UI first
     notes = notes.filter((note) => note.id !== noteToDelete!.id);
 
     try {
-      const result = await tauriService.deleteNote(noteToDelete.id);
-      if (result.success) {
-        // Close dialog if the deleted note was selected
-        if (selectedNote?.id === noteToDelete.id) {
-          isDialogOpen = false;
-          selectedNote = null;
-        }
+      const success = await tauriService.deleteNote(noteToDelete.id);
+      if (success) {
+        isDeleteDialogOpen = false;
       } else {
-        console.error(`Failed to delete note: ${result.error || 'Unknown error'}`);
+        // If deletion failed, restore the note to the UI
+        notes = [...notes, noteToDelete!];
+        console.error(`Failed to delete note: Note not found`);
       }
     } catch (error) {
+      // If deletion failed, restore the note to the UI
+      notes = [...notes, noteToDelete!];
       console.error('Failed to delete note:', error);
     } finally {
       isDeleteDialogOpen = false;

@@ -4,6 +4,7 @@
   import Mic from '@lucide/svelte/icons/mic';
   import FileText from '@lucide/svelte/icons/file-text';
   import User from '@lucide/svelte/icons/user';
+  import Play from '@lucide/svelte/icons/play';
   import { page } from '$app/state';
   import { getContext } from 'svelte';
   import type { AuthContext } from '$lib/types.js';
@@ -28,6 +29,11 @@
       url: '/notes',
       icon: FileText
     },
+    // {
+    //   title: 'Playground',
+    //   url: '/playground',
+    //   icon: Play
+    // },
     {
       title: 'Profile',
       url: '/profile',

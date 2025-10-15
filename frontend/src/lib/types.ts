@@ -115,3 +115,98 @@ export interface TauriNote extends TauriNoteIn {
 }
 
 export type RecordingState = 'not-ready' | 'ready' | 'recording' | 'paused' | 'stopped' | 'error';
+
+/**
+ * Model information interface
+ */
+export interface ModelInfo {
+  /** Display name of the model */
+  name: string;
+  /** File name of the model */
+  file_name: string;
+  /** Size in megabytes */
+  size_mb: number;
+  /** Whether the model is installed */
+  installed: boolean;
+  /** File path if installed */
+  file_path: string | null;
+}
+
+/**
+ * Whisper model size options
+ */
+export type WhisperModelSize = 'tiny' | 'base' | 'small' | 'medium' | 'large';
+
+/**
+ * Model preferences interface
+ */
+export interface ModelPreferences {
+  /** Selected Whisper model size */
+  whisper_model_size: WhisperModelSize;
+  /** URL for the Whisper model */
+  whisper_model_url: string;
+  /** Filename for the Whisper model */
+  whisper_model_filename: string;
+  /** URL for the MedLlama model */
+  med_llama_url: string;
+  /** Filename for the MedLlama model */
+  med_llama_filename: string;
+  /** Last updated timestamp */
+  updated_at: string;
+}
+
+/**
+ * Downloaded model information
+ */
+export interface DownloadedModel {
+  /** Filename of the model */
+  filename: string;
+  /** Size in bytes */
+  size_bytes: number;
+  /** Full path to the model file */
+  path: string;
+}
+
+/**
+ * Whisper model metadata from backend
+ */
+export interface WhisperModelMetadata {
+  /** Value identifier (e.g., "tiny", "base") */
+  value: string;
+  /** Display label */
+  label: string;
+  /** Size in megabytes */
+  size: number;
+  /** Download URL */
+  url: string;
+  /** Filename */
+  file_name: string;
+}
+
+/**
+ * Runtime binary metadata
+ */
+export interface RuntimeBinaryMetadata {
+  /** Display name */
+  name: string;
+  /** Download URL */
+  url: string;
+  /** Filename */
+  file_name: string;
+  /** Size in megabytes */
+  size_mb: number;
+}
+
+/**
+ * MedLlama model metadata
+ */
+export interface MedLlamaModelMetadata {
+  /** Display name */
+  name: string;
+  /** Default download URL */
+  default_url: string;
+  /** Filename */
+  file_name: string;
+  /** Size in megabytes */
+  size_mb: number;
+}

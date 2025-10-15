@@ -14,8 +14,12 @@
       "Bash(cargo:*)",
       "Read(//Users/alexledger/Library/Application Support/CleanShot/media/media_p0wLe6s3Vv/**)",
       "Bash(node:*)",
-      "Bash(claude --version)"
+      "Bash(claude --version)",
+      "Bash(/Users/alexledger/.config/superpowers/skills/skills/using-skills/find-skills \"debugging\")",
+      "Read(//Users/alexledger/.config/superpowers/skills/skills/debugging/systematic-debugging/**)",
+      "Bash(/Users/alexledger/.config/superpowers/skills/skills/using-skills/find-skills \"refactoring\")"
     ],
     "deny": []
-  }
+  },
+  "spinnerTipsEnabled": false
 }

@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest } from '$lib/types';
+import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest, ModelInfo, ModelPreferences, DownloadedModel, WhisperModelMetadata, RuntimeBinaryMetadata, MedLlamaModelMetadata } from '$lib/types';
 import { authContext } from '$lib/hooks/auth-context.svelte.js';
 
 declare global {
@@ -111,7 +111,7 @@ class TauriService {
     return result;
   }
 
-  async deleteNote(noteId: string): Promise<{ success: boolean; error: string | null }> {
+  async deleteNote(noteId: string): Promise<boolean> {
     return await this.ensureTauri().core.invoke('delete_patient_note', { noteId: noteId });
   }
 
@@ -162,6 +162,14 @@ class TauriService {
     return await this.ensureTauri().core.invoke('check_models_downloaded');
   }
 
+  async checkAllModelsInstalled(): Promise<boolean> {
+    return await this.ensureTauri().core.invoke('check_all_models_installed');
+  }
+
+  async getModelsInfo(): Promise<ModelInfo[]> {
+    return await this.ensureTauri().core.invoke('get_models_info_command');
+  }
+
   async downloadModelFile(model: any): Promise<void> {
     return await this.ensureTauri().core.invoke('download_model_file', { model });
   }
@@ -172,6 +180,40 @@ class TauriService {
 
   async listen<T>(event: string, callback: (data: { payload: T }) => void): Promise<void> {
     return await this.ensureTauri().event.listen(event, callback);
+  }
+
+  // Model preference methods
+  async getModelPreferences(): Promise<ModelPreferences> {
+    return await this.ensureTauri().core.invoke('get_model_preferences_command');
+  }
+
+  async saveModelPreferences(preferences: ModelPreferences): Promise<boolean> {
+    return await this.ensureTauri().core.invoke('save_model_preferences_command', { preferences });
+  }
+
+  async listDownloadedModels(): Promise<DownloadedModel[]> {
+    return await this.ensureTauri().core.invoke('list_downloaded_models');
+  }
+
+  async deleteModelFile(filename: string): Promise<boolean> {
+    return await this.ensureTauri().core.invoke('delete_model_file', { filename });
+  }
+
+  async downloadCustomModel(url: string, filename: string): Promise<string> {
+    return await this.ensureTauri().core.invoke('download_custom_model', { url, filename });
+  }
+
+  // Model metadata methods (SINGLE SOURCE OF TRUTH from backend)
+  async getWhisperModelOptions(): Promise<WhisperModelMetadata[]> {
+    return await this.ensureTauri().core.invoke('get_whisper_model_options_command');
+  }
+
+  async getRuntimeBinaries(): Promise<RuntimeBinaryMetadata[]> {
+    return await this.ensureTauri().core.invoke('get_runtime_binaries_command');
+  }
+
+  async getMedLlamaMetadata(): Promise<MedLlamaModelMetadata> {
+    return await this.ensureTauri().core.invoke('get_medllama_metadata_command');
   }
 }
 

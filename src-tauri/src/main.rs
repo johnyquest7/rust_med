@@ -14,12 +14,17 @@ use std::process::Stdio;
 use rusqlite::Connection;
 
 mod auth;
+mod constants;
 mod db;
 mod downloads;
 
 use auth::*;
 use db::*;
 use downloads::*;
+
+// Additional imports for model management
+use db::{ModelPreferences, load_model_preferences, save_model_preferences,
+         model_preferences_exist, get_default_model_preferences};
 
 /// Helper to get database connection
 fn get_db_connection(app: &tauri::AppHandle) -> Result<Connection, String> {
@@ -242,8 +247,21 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
         }
     };
 
-    // Find the model file
-    let model_names = [
+    // Load model preferences from database
+    let conn = get_db_connection(&app)?;
+    let preferred_model = match load_model_preferences(&conn) {
+        Ok(prefs) => {
+            println!("Using preferred whisper model: {}", prefs.whisper_model_filename);
+            Some(prefs.whisper_model_filename)
+        }
+        Err(_) => {
+            println!("No model preferences found, using default model search");
+            None
+        }
+    };
+
+    // Build list of model names to try, prioritizing the preferred model
+    let default_model_names = [
         "whisper-tiny.en.gguf",
         "ggml-tiny.en.bin",
         "whisper-tiny.en.bin",
@@ -251,16 +269,30 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
         "ggml-small.en.bin"
     ];
 
+    let mut model_names_to_try = Vec::new();
+
+    // Add preferred model first if it exists and is not already in the default list
+    if let Some(ref preferred) = preferred_model {
+        model_names_to_try.push(preferred.as_str());
+    }
+
+    // Add default models that aren't the preferred model
+    for model_name in &default_model_names {
+        if Some(model_name.to_string()) != preferred_model {
+            model_names_to_try.push(model_name);
+        }
+    }
+
     let model_paths = [
         // Production: app data directory (where setup wizard downloads them)
         app_data_dir.join("binaries").join("models"),
         // Development: relative to project root
         PathBuf::from("binaries").join("models"),
     ];
-    
+
     let mut model_path = None;
     'outer: for base_path in &model_paths {
-        for model_name in &model_names {
+        for model_name in &model_names_to_try {
             let test_path = base_path.join(model_name);
             println!("Checking model path: {:?}", test_path);
             if test_path.exists() {
@@ -270,7 +302,7 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
             }
         }
     }
-    
+
     let model_path = match model_path {
         Some(path) => path,
         None => {
@@ -434,14 +466,41 @@ async fn generate_medical_note(
         }
     };
 
-    // Find the model file with absolute paths - FIXED VERSION
-    let model_names = [
+    // Load model preferences from database
+    let conn = get_db_connection(&app)?;
+    let preferred_model = match load_model_preferences(&conn) {
+        Ok(prefs) => {
+            println!("Using preferred MedLlama model: {}", prefs.med_llama_filename);
+            Some(prefs.med_llama_filename)
+        }
+        Err(_) => {
+            println!("No model preferences found, using default model search");
+            None
+        }
+    };
+
+    // Build list of model names to try, prioritizing the preferred model
+    let default_model_names = [
         "med_llama.gguf",
-        "llama-2-7b-chat.gguf", 
+        "llama-2-7b-chat.gguf",
         "llama-2-13b-chat.gguf",
         "mistral-7b-instruct.gguf",
         "openchat-3.5.gguf"
     ];
+
+    let mut model_names_to_try = Vec::new();
+
+    // Add preferred model first if it exists and is not already in the default list
+    if let Some(ref preferred) = preferred_model {
+        model_names_to_try.push(preferred.as_str());
+    }
+
+    // Add default models that aren't the preferred model
+    for model_name in &default_model_names {
+        if Some(model_name.to_string()) != preferred_model {
+            model_names_to_try.push(model_name);
+        }
+    }
     
     let model_paths = [
         // Production: app data directory (where setup wizard downloads them)
@@ -449,10 +508,10 @@ async fn generate_medical_note(
         // Development: absolute paths from project root
         project_root.join("binaries").join("models"),
     ];
-    
+
     let mut model_path = None;
     'outer_llm: for base_path in &model_paths {
-        for model_name in &model_names {
+        for model_name in &model_names_to_try {
             let test_path = base_path.join(model_name);
             println!("Checking LLM model path: {:?}", test_path);
             if test_path.exists() {
@@ -482,65 +541,31 @@ async fn generate_medical_note(
         }
     };
 
-    // Use the correct chat template for your model
-    let prompt = if note_type == "soap" {
-        format!(
-            "<|begin_of_text|><|start_header_id|>user<|end_header_id|>
-You are an expert medical professor assisting in the creation of medically accurate SOAP notes.  
-Create a Medical SOAP note from the transcript, following these guidelines:\n    
-Correct any medical terminology errors that might have happened during transcription before generating the SOAP note.\n
-S (Subjective): Summarize the patient's reported symptoms, including chief complaint and relevant history.
-Rely on the patient's statements as the primary source and ensure standardized terminology.\n    
-O (Objective): Include objective findings in the transcripts such as vital signs, physical exam findings, lab results, and imaging.\n    
-A (Assessment): Concise assessment combining subjective and objective data. State the diagnoses and assesment of the diagnoses in a numbered list.\n    
-P (Plan): Outline the treatment plan. Compile the report based solely on the transcript provided.\n    
-Please format the summary in a clean, simple list format without using markdown or bullet points. Use 'S:', 'O:', 'A:', 'P:' directly followed by the text. TRANSCRIPT: \n
-
-{}
-<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-S: ",
-            transcript
+    // Use the correct chat template for your model with separated system and user prompts
+    let (system_prompt, user_prompt_template, assistant_start) = if note_type == "soap" {
+        (
+            constants::SOAP_SYSTEM_PROMPT,
+            constants::SOAP_USER_PROMPT_TEMPLATE,
+            "<soap_note>"
         )
     } else {
-        format!(
-            "<|begin_of_text|><|start_header_id|>user<|end_header_id|>
-You are an expert medical transcriptionist. Correct any medical terminology errors that might have happened during transcription before generating the medical note. You convert medical transcript to a structured medical note with these sections in this order: 
-1. Presenting Illness
-(Bullet point statements of the main problem)
-2. History of Presenting Illness
-(Chronological narrative: symptom onset, progression, modifiers, associated factors)
-3. Past Medical History
-(List chronic illnesses and past medical diagnoses mentioned in the transcript. Do not include surgeries)
-4. Surgical History
-(List prior surgeries with year if known mentioned in the transcript)
-5. Family History
-(Relevant family history mentioned in the transcript)
-6. Social History
-(Occupation, tobacco/alcohol/drug use, exercise, living situation if mentioned in the transcript)
-7. Allergy History
-(Drug/food/environmental allergies + reactions - if mentioned in the transcript)
-8. Medication History
-(List medications the patient is already taking. Do not place any medication the patient is currently not taking.) 
-9. Dietary History
-(\"Not applicable\" if unrelated, otherwise summarize diet pattern)
-10. Review of Systems
-(Head-to-toe -ordered bullets; note positives and pertinent negatives- mentioned in the transcript)
-11. Physical Exam Findings
-Vital Signs (BP, HR, RR, Temp, SpO₂, HT, WT, BMI) - if mentioned in the transcript
-(Structured by system: General, HEENT, CV, Resp, Abd, Neuro, MSK, Skin, Psych) - if mentioned in the transcript
-12. Labs and Imaging
-(labs, imaging results)
-13. Assessment and Plan 
-(List each diagnoses and treatment plan. No other information needed in this section.Do not generate new diagnoses)
-
-Medical transcript:
-{}
-
-<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-",
-            transcript
+        (
+            constants::FULL_MEDICAL_SYSTEM_PROMPT,
+            constants::FULL_MEDICAL_USER_PROMPT_TEMPLATE,
+            ""
         )
     };
+
+    // Format the user prompt with the transcript
+    let user_prompt = user_prompt_template.replace("{transcript}", &transcript);
+
+    // Combine system and user prompts with proper chat template formatting
+    let prompt = format!(
+        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>{system_prompt}<|eot_id|><|start_header_id|>user<|end_header_id|>{user_prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>{assistant_start}",
+        system_prompt = system_prompt,
+        user_prompt = user_prompt,
+        assistant_start = assistant_start
+    );
 
     println!("=== PROMPT BEING SENT ===");
     println!("{}", prompt);
@@ -553,15 +578,15 @@ Medical transcript:
     cmd.current_dir(&project_root)
         .args([
             "-m", &model_path.to_string_lossy(),
-            "--temp", "0.2",           // Low temp for consistent output
+            "--temp", constants::TEMPERATURE,           // Low temp for consistent output
             "--top-p", "0.95",         
-            "--top-k", "30",           
-            "--repeat-penalty", "1.05", // Prevent repetition
-            "-n", "800",               // Limit output length
-            "--threads", "4",
-            "--ctx-size", "4096",      
+            // "--top-k", "30",           
+            // "--repeat-penalty", "1.05", // Prevent repetition
+            "-n", "4096",               // Limit output length
+            // "--threads", "4",
+            // "--ctx-size", "4096",      
             "--no-display-prompt",     // Don't echo prompt
-            "--batch-size", "512",
+            // "--batch-size", "512",
             "--log-disable",           // Disable logging
             "-p", &prompt
         ])
@@ -675,14 +700,7 @@ fn clean_llm_output(output: &str) -> String {
         result = result.replace(artifact, "");
     }
     
-    // Since the model starts with "S: " we need to add it back if it was stripped
     let mut cleaned = result.trim().to_string();
-    
-    // If the output doesn't start with "S:", add it back (only for SOAP notes)
-    if !cleaned.starts_with("S:") && !cleaned.is_empty() && 
-       !cleaned.contains("Presenting Illness") && !cleaned.contains("History of Presenting Illness") {
-        cleaned = format!("S: {}", cleaned);
-    }
     
     // Handle case where model might continue generating beyond SOAP note
     // Look for natural stopping points or repetitive content
@@ -1124,7 +1142,33 @@ async fn get_required_models_list() -> Result<Vec<ModelDownloadInfo>, String> {
 
 #[tauri::command]
 async fn check_models_downloaded(app: tauri::AppHandle) -> Result<Vec<(ModelDownloadInfo, bool)>, String> {
-    check_models_exist(&app).await
+    // Get user preferences to determine which models to check
+    let conn = get_db_connection(&app)?;
+    let preferences = if model_preferences_exist(&conn).map_err(|e| e.to_string())? {
+        load_model_preferences(&conn).map_err(|e| e.to_string())?
+    } else {
+        get_default_model_preferences()
+    };
+    
+    check_models_exist_with_preferences(&app, &preferences).await
+}
+
+#[tauri::command]
+async fn check_all_models_installed(app: tauri::AppHandle) -> Result<bool, String> {
+    check_all_models_present(&app).await
+}
+
+#[tauri::command]
+async fn get_models_info_command(app: tauri::AppHandle) -> Result<Vec<ModelInfo>, String> {
+    // Get user preferences to determine which models to check
+    let conn = get_db_connection(&app)?;
+    let preferences = if model_preferences_exist(&conn).map_err(|e| e.to_string())? {
+        load_model_preferences(&conn).map_err(|e| e.to_string())?
+    } else {
+        get_default_model_preferences()
+    };
+    
+    get_models_info_with_preferences(&app, &preferences).await
 }
 
 #[tauri::command]
@@ -1143,6 +1187,171 @@ async fn complete_setup(app: tauri::AppHandle) -> Result<bool, String> {
     let conn = get_db_connection(&app)?;
     mark_setup_completed(&conn).map_err(|e| e.to_string())?;
     Ok(true)
+}
+
+// Model Management Commands
+
+#[tauri::command]
+async fn get_model_preferences_command(app: tauri::AppHandle) -> Result<ModelPreferences, String> {
+    let conn = get_db_connection(&app)?;
+
+    // Check if preferences exist in database
+    if !model_preferences_exist(&conn).map_err(|e| e.to_string())? {
+        // Return default preferences if none exist
+        Ok(get_default_model_preferences())
+    } else {
+        // Load from database
+        load_model_preferences(&conn).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+async fn save_model_preferences_command(
+    app: tauri::AppHandle,
+    preferences: ModelPreferences,
+) -> Result<bool, String> {
+    let conn = get_db_connection(&app)?;
+
+    // Update timestamp
+    let mut prefs = preferences.clone();
+    prefs.updated_at = chrono::Local::now().to_rfc3339();
+
+    save_model_preferences(&conn, &prefs).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+#[derive(Serialize)]
+struct DownloadedModel {
+    filename: String,
+    size_bytes: u64,
+    path: String,
+}
+
+#[tauri::command]
+async fn list_downloaded_models(app: tauri::AppHandle) -> Result<Vec<DownloadedModel>, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let models_dir = app_data_dir.join("binaries").join("models");
+
+    // Check if directory exists
+    if !models_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut models = Vec::new();
+
+    // Read directory entries
+    let entries = fs::read_dir(&models_dir)
+        .map_err(|e| format!("Failed to read models directory: {}", e))?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+        let path = entry.path();
+
+        // Only include files (not directories)
+        if path.is_file() {
+            let metadata = fs::metadata(&path)
+                .map_err(|e| format!("Failed to get file metadata: {}", e))?;
+
+            let filename = path.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            models.push(DownloadedModel {
+                filename: filename.clone(),
+                size_bytes: metadata.len(),
+                path: path.to_string_lossy().to_string(),
+            });
+        }
+    }
+
+    // Sort by filename for consistent ordering
+    models.sort_by(|a, b| a.filename.cmp(&b.filename));
+
+    Ok(models)
+}
+
+#[tauri::command]
+async fn delete_model_file(app: tauri::AppHandle, filename: String) -> Result<bool, String> {
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let models_dir = app_data_dir.join("binaries").join("models");
+    let model_path = models_dir.join(&filename);
+
+    // Validate the filename to prevent directory traversal attacks
+    if filename.contains("..") || filename.contains("/") || filename.contains("\\") {
+        return Err("Invalid filename".to_string());
+    }
+
+    // Check if file exists
+    if !model_path.exists() {
+        return Err(format!("Model file not found: {}", filename));
+    }
+
+    // Delete the file
+    fs::remove_file(&model_path)
+        .map_err(|e| format!("Failed to delete model file: {}", e))?;
+
+    println!("Model file deleted: {}", filename);
+    Ok(true)
+}
+
+#[tauri::command]
+async fn download_custom_model(
+    app: tauri::AppHandle,
+    url: String,
+    filename: String,
+) -> Result<String, String> {
+    println!("Downloading custom model from {} to {}", url, filename);
+
+    // Validate filename
+    if filename.contains("..") || filename.contains("/") || filename.contains("\\") {
+        return Err("Invalid filename".to_string());
+    }
+
+    let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let binaries_dir = app_data_dir.join("binaries");
+    let models_dir = binaries_dir.join("models");
+
+    // Ensure directories exist
+    if !models_dir.exists() {
+        fs::create_dir_all(&models_dir)
+            .map_err(|e| format!("Failed to create models directory: {}", e))?;
+    }
+
+    // Create ModelDownloadInfo for the download using the create_custom_model_info function
+    let model_info = create_custom_model_info(
+        format!("Custom model: {}", filename),
+        url.clone(),
+        filename.clone(),
+        0.0, // Unknown size for custom downloads
+    );
+
+    // Use existing download_model function
+    match download_model(&app, model_info).await {
+        Ok(path) => {
+            println!("Custom model downloaded successfully to: {:?}", path);
+            Ok(path.to_string_lossy().to_string())
+        },
+        Err(e) => Err(format!("Download failed: {}", e)),
+    }
+}
+
+/// Get all available Whisper model options with metadata
+#[tauri::command]
+async fn get_whisper_model_options_command() -> Result<Vec<WhisperModelMetadata>, String> {
+    Ok(get_whisper_model_options())
+}
+
+/// Get runtime binaries metadata
+#[tauri::command]
+async fn get_runtime_binaries_command() -> Result<Vec<RuntimeBinaryMetadata>, String> {
+    Ok(get_runtime_binaries())
+}
+
+/// Get MedLlama model metadata
+#[tauri::command]
+async fn get_medllama_metadata_command() -> Result<MedLlamaModelMetadata, String> {
+    Ok(get_medllama_metadata())
 }
 
 fn main() {
@@ -1166,8 +1375,18 @@ fn main() {
             check_setup_status,
             get_required_models_list,
             check_models_downloaded,
+            check_all_models_installed,
+            get_models_info_command,
             download_model_file,
-            complete_setup
+            complete_setup,
+            get_model_preferences_command,
+            save_model_preferences_command,
+            list_downloaded_models,
+            delete_model_file,
+            download_custom_model,
+            get_whisper_model_options_command,
+            get_runtime_binaries_command,
+            get_medllama_metadata_command
         ])
         .setup(|app| {
             let resource_dir = app.path().resource_dir().expect("failed to get resource directory");
