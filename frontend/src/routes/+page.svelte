@@ -13,10 +13,7 @@
   import Pause from '@lucide/svelte/icons/pause';
   import Square from '@lucide/svelte/icons/square';
   import Loader2 from '@lucide/svelte/icons/loader-2';
-  import Star from '@lucide/svelte/icons/star';
-  import AlertCircle from '@lucide/svelte/icons/alert-circle';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
-  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   // Form state
   let formData = $state({

@@ -33,10 +33,10 @@
   const auth = useAuth();
 
   // Reactive state from auth context
-  let state = $derived(auth.state);
-  let user = $derived(state.user);
-  let isAuthenticated = $derived(state.isAuthenticated);
-  let error = $derived(state.error);
+  let authState = $derived(auth.state);
+  let user = $derived(authState.user);
+  let isAuthenticated = $derived(authState.isAuthenticated);
+  let error = $derived(authState.error);
 
   // Model information state
   let modelsInfo: ModelInfo[] = $state([]);
@@ -55,7 +55,6 @@
   // UI state
   let selectedWhisperSize: WhisperModelSize = $state('tiny');
   let medLlamaUrl = $state('');
-  let savingPreferences = $state(false);
   let downloadingModel = $state(false);
   let downloadProgress = $state('');
   let successMessage = $state('');
