@@ -10,9 +10,15 @@
   import * as Select from '$lib/components/ui/select';
   import * as Tabs from '$lib/components/ui/tabs';
   import { tauriService } from '$lib/tauriService';
-  import type { ModelInfo, ModelPreferences, WhisperModelSize, DownloadedModel, WhisperModelMetadata, MedLlamaModelMetadata } from '$lib/types';
+  import type {
+    ModelPreferences,
+    WhisperModelSize,
+    DownloadedModel,
+    WhisperModelMetadata,
+    MedLlamaModelMetadata,
+    ModelInfo
+  } from '$lib/types';
   import User from '@lucide/svelte/icons/user';
-  import Shield from '@lucide/svelte/icons/shield';
   import LogOut from '@lucide/svelte/icons/log-out';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
   import Loader2 from '@lucide/svelte/icons/loader-2';
@@ -26,14 +32,14 @@
   const auth = useAuth();
 
   // Reactive state from auth context
-  let state = $derived(auth.state);
-  let user = $derived(state.user);
-  let isAuthenticated = $derived(state.isAuthenticated);
-  let error = $derived(state.error);
+  let authState = $derived(auth.state);
+  let user = $derived(authState.user);
+  let isAuthenticated = $derived(authState.isAuthenticated);
+  let error = $derived(authState.error);
 
   // Model information state
   let modelsInfo: ModelInfo[] = $state([]);
-  let loadingModels = $state(true);
+  let loadingModels = $state(false);
   let modelsError: string | null = $state(null);
 
   // Model preferences state
@@ -48,7 +54,6 @@
   // UI state
   let selectedWhisperSize: WhisperModelSize = $state('tiny');
   let medLlamaUrl = $state('');
-  let savingPreferences = $state(false);
   let downloadingModel = $state(false);
   let downloadProgress = $state('');
   let successMessage = $state('');
@@ -59,12 +64,7 @@
 
   // Load models information on mount
   onMount(async () => {
-    await Promise.all([
-      loadModelMetadata(),
-      loadModelsInfo(),
-      loadPreferences(),
-      loadDownloadedModels()
-    ]);
+    await Promise.all([loadModelMetadata(), loadModelsInfo(), loadPreferences(), loadDownloadedModels()]);
   });
 
   async function loadModelMetadata() {
@@ -114,7 +114,7 @@
   }
 
   function getWhisperModelInfo(size: WhisperModelSize): WhisperModelMetadata | undefined {
-    return whisperModelOptions.find(opt => opt.value === size);
+    return whisperModelOptions.find((opt) => opt.value === size);
   }
 
   async function loadDownloadedModels() {
@@ -155,35 +155,6 @@
       }, 2000);
     } catch (err) {
       console.error('Failed to update whisper preference:', err);
-      preferencesError = err instanceof Error ? err.message : 'Failed to update preference';
-    }
-  }
-
-  async function handleSelectMedLlamaUrl(url: string) {
-    if (!preferences) return;
-
-    try {
-      // Update preferences immediately
-      const newPreferences: ModelPreferences = {
-        whisper_model_size: preferences.whisper_model_size,
-        whisper_model_url: preferences.whisper_model_url,
-        whisper_model_filename: preferences.whisper_model_filename,
-        med_llama_url: url,
-        med_llama_filename: preferences.med_llama_filename,
-        updated_at: new Date().toISOString()
-      };
-
-      await tauriService.saveModelPreferences(newPreferences);
-      preferences = newPreferences;
-      medLlamaUrl = url;
-      successMessage = 'MedLlama model URL updated';
-
-      // Clear success message after 2 seconds
-      setTimeout(() => {
-        successMessage = '';
-      }, 2000);
-    } catch (err) {
-      console.error('Failed to update MedLlama URL:', err);
       preferencesError = err instanceof Error ? err.message : 'Failed to update preference';
     }
   }
@@ -272,18 +243,11 @@
 
   function handleLogout() {
     auth.logout();
-    goto('/');
+    goto('/', { replaceState: true });
   }
 
   function handleClearError() {
     auth.clearError();
-  }
-
-  function formatFileSize(sizeMb: number): string {
-    if (sizeMb >= 1024) {
-      return `${(sizeMb / 1024).toFixed(2)} GB`;
-    }
-    return `${sizeMb.toFixed(0)} MB`;
   }
 
   function formatBytes(bytes: number): string {
@@ -336,6 +300,17 @@
             <span class="text-sm font-medium text-gray-600">Account Status</span>
             <Badge variant="default">Active</Badge>
           </div>
+          <Separator />
+          <div class="flex items-center justify-between py-2">
+            <div class="flex items-center space-x-3">
+              <LogOut class="h-4 w-4 text-gray-500" />
+              <div>
+                <p class="text-sm font-medium">Sign Out</p>
+                <p class="text-xs text-gray-500">Sign out of your account</p>
+              </div>
+            </div>
+            <Button variant="destructive" size="sm" onclick={handleLogout}>Sign Out</Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -346,7 +321,8 @@
             <Settings class="h-5 w-5" />
             <span>Model Management</span>
           </CardTitle>
-          <CardDescription>Download, select, and manage AI models for transcription and note generation</CardDescription>
+          <CardDescription>Download, select, and manage AI models for transcription and note generation</CardDescription
+          >
         </CardHeader>
         <CardContent class="space-y-4">
           {#if loadingPreferences}
@@ -393,13 +369,17 @@
                   </p>
 
                   <div class="space-y-3">
-                    {#each whisperModelOptions as option}
-                      {@const isDownloaded = downloadedModels.some(m => m.filename === `whisper-${option.value}.en.gguf`)}
-                      {@const isActive = preferences.whisper_model_size === option.value}
+                    {#each whisperModelOptions as option (option.value)}
+                      {@const isDownloaded = downloadedModels.some(
+                        (m) => m.filename === `whisper-${option.value}.en.gguf`
+                      )}
+                      {@const isActive = preferences.whisper_model_size === (option.value as WhisperModelSize)}
                       <button
-                        onclick={() => isDownloaded && handleSelectWhisperModel(option.value)}
+                        onclick={() => isDownloaded && handleSelectWhisperModel(option.value as WhisperModelSize)}
                         disabled={!isDownloaded}
-                        class="w-full flex items-center justify-between rounded-lg border p-4 text-left transition-colors {isActive ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'} {!isDownloaded ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}"
+                        class="flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors {isActive
+                          ? 'border-primary bg-primary/5'
+                          : 'hover:bg-muted/50'} {!isDownloaded ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}"
                       >
                         <div class="flex-1">
                           <p class="text-sm font-medium">{option.label}</p>
@@ -425,8 +405,8 @@
                   </p>
 
                   <div class="rounded-lg bg-muted/50 p-4">
-                    <p class="text-sm font-medium mb-2">Current URL:</p>
-                    <p class="break-all text-xs font-mono text-muted-foreground">{preferences.med_llama_url}</p>
+                    <p class="mb-2 text-sm font-medium">Current URL:</p>
+                    <p class="font-mono text-xs break-all text-muted-foreground">{preferences.med_llama_url}</p>
                   </div>
                 </div>
               </Tabs.Content>
@@ -437,21 +417,20 @@
                 <div class="space-y-3">
                   <Label class="text-base font-semibold">Download Whisper Model</Label>
                   <p class="text-sm text-muted-foreground">
-                    Choose and download a Whisper model for transcription. Larger models are more accurate but slower and use more storage.
+                    Choose and download a Whisper model for transcription. Larger models are more accurate but slower
+                    and use more storage.
                   </p>
 
                   <div class="grid gap-4 md:grid-cols-2">
                     <div class="space-y-2">
                       <Label for="whisper-download-size">Model Size</Label>
-                      <Select.Root
-                        type="single"
-                        bind:value={selectedWhisperSize}
-                      >
+                      <Select.Root type="single" bind:value={selectedWhisperSize}>
                         <Select.Trigger id="whisper-download-size" class="w-full">
-                          {whisperModelOptions.find(opt => opt.value === selectedWhisperSize)?.label || 'Select model size'}
+                          {whisperModelOptions.find((opt) => opt.value === selectedWhisperSize)?.label ||
+                            'Select model size'}
                         </Select.Trigger>
                         <Select.Content>
-                          {#each whisperModelOptions as option}
+                          {#each whisperModelOptions as option (option.value)}
                             <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
                           {/each}
                         </Select.Content>
@@ -483,7 +462,8 @@
                 <div class="space-y-3">
                   <Label class="text-base font-semibold">Download MedLlama Model</Label>
                   <p class="text-sm text-muted-foreground">
-                    Enter a URL to download a MedLlama model for note generation. This should be a direct download link to a .gguf file.
+                    Enter a URL to download a MedLlama model for note generation. This should be a direct download link
+                    to a .gguf file.
                   </p>
 
                   <div class="space-y-2">
@@ -530,21 +510,19 @@
                   {:else if downloadedModels.length === 0}
                     <div class="rounded-lg border border-dashed p-8 text-center">
                       <p class="text-sm text-muted-foreground">No model files found in the models directory.</p>
-                      <p class="text-xs text-muted-foreground mt-2">Download models from the Download tab to get started.</p>
+                      <p class="mt-2 text-xs text-muted-foreground">
+                        Download models from the Download tab to get started.
+                      </p>
                     </div>
                   {:else}
                     <div class="space-y-2">
-                      {#each downloadedModels as model}
+                      {#each downloadedModels as model (model.filename)}
                         <div class="flex items-center justify-between rounded-lg border p-3">
                           <div class="flex-1">
-                            <p class="text-sm font-medium font-mono">{model.filename}</p>
+                            <p class="font-mono text-sm font-medium">{model.filename}</p>
                             <p class="text-xs text-muted-foreground">{formatBytes(model.size_bytes)}</p>
                           </div>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onclick={() => handleDeleteModel(model.filename)}
-                          >
+                          <Button variant="destructive" size="sm" onclick={() => handleDeleteModel(model.filename)}>
                             <Trash2 class="h-4 w-4" />
                           </Button>
                         </div>
@@ -563,40 +541,6 @@
         </CardContent>
       </Card>
 
-      <!-- Security Settings -->
-      <Card>
-        <CardHeader>
-          <CardTitle class="flex items-center space-x-2">
-            <Shield class="h-5 w-5" />
-            <span>Security Settings</span>
-          </CardTitle>
-          <CardDescription>Manage your account security and privacy settings</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-4">
-          <!-- TODO: changing pasword not implemented -->
-          <!-- <div class="flex items-center justify-between py-2">
-            <div class="flex items-center space-x-3">
-              <Key class="h-4 w-4 text-gray-500" />
-              <div>
-                <p class="text-sm font-medium">Password</p>
-                <p class="text-xs text-gray-500">Last changed 2 months ago</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm">Change Password</Button>
-          </div>
-          <Separator /> -->
-          <div class="flex items-center justify-between py-2">
-            <div class="flex items-center space-x-3">
-              <LogOut class="h-4 w-4 text-gray-500" />
-              <div>
-                <p class="text-sm font-medium">Sign Out</p>
-                <p class="text-xs text-gray-500">Sign out of your account</p>
-              </div>
-            </div>
-            <Button variant="destructive" size="sm" onclick={handleLogout}>Sign Out</Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <!-- Error Display -->
       {#if error}

@@ -13,10 +13,7 @@
   import Pause from '@lucide/svelte/icons/pause';
   import Square from '@lucide/svelte/icons/square';
   import Loader2 from '@lucide/svelte/icons/loader-2';
-  import Star from '@lucide/svelte/icons/star';
-  import AlertCircle from '@lucide/svelte/icons/alert-circle';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
-  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   // Form state
   let formData = $state({
@@ -36,7 +33,6 @@
   let isMicrophoneConnected = $state(false);
 
   // Consolidated status and error management
-  let statusType = $state<'info' | 'success' | 'warning' | 'error'>('info');
   let microphoneError = $state('');
   let recordingError = $state('');
   let processingError = $state('');
@@ -45,6 +41,9 @@
   let isProcessing = $state(false);
   let processingStage = $state<'transcribing' | 'generating' | 'saving' | 'complete' | null>(null);
   let processingSuccess = $state(false);
+  
+  // Status type for UI feedback
+  let statusType = $state<'info' | 'success' | 'warning' | 'error'>('info');
 
   // Audio recording state
   let mediaRecorder: MediaRecorder | null = null;
@@ -749,7 +748,7 @@
                       'Select a microphone'}
                   </Select.Trigger>
                   <Select.Content>
-                    {#each availableMicrophones as microphone}
+                    {#each availableMicrophones as microphone (microphone.deviceId)}
                       <Select.Item value={microphone.deviceId}>
                         {microphone.label || `Microphone ${microphone.deviceId.slice(0, 8)}`}
                       </Select.Item>

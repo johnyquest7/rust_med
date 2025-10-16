@@ -1,9 +1,9 @@
+use crate::db::ModelPreferences;
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager};
-use futures_util::StreamExt;
-use std::io::Write;
-use crate::db::ModelPreferences;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DownloadError {
@@ -92,35 +92,40 @@ pub fn get_whisper_model_options() -> Vec<WhisperModelMetadata> {
             value: "tiny".to_string(),
             label: "Tiny (141 MB) - Fastest".to_string(),
             size: 141.0,
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin"
+                .to_string(),
             file_name: "whisper-tiny.en.gguf".to_string(),
         },
         WhisperModelMetadata {
             value: "base".to_string(),
             label: "Base (142 MB) - Fast".to_string(),
             size: 142.0,
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
+                .to_string(),
             file_name: "whisper-base.en.gguf".to_string(),
         },
         WhisperModelMetadata {
             value: "small".to_string(),
             label: "Small (466 MB) - Balanced".to_string(),
             size: 466.0,
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin"
+                .to_string(),
             file_name: "whisper-small.en.gguf".to_string(),
         },
         WhisperModelMetadata {
             value: "medium".to_string(),
             label: "Medium (1.5 GB) - Accurate".to_string(),
             size: 1500.0,
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin"
+                .to_string(),
             file_name: "whisper-medium.en.gguf".to_string(),
         },
         WhisperModelMetadata {
             value: "large".to_string(),
             label: "Large (3.1 GB) - Most Accurate".to_string(),
             size: 3100.0,
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin"
+                .to_string(),
             file_name: "whisper-large.gguf".to_string(),
         },
     ]
@@ -132,13 +137,17 @@ pub fn get_runtime_binaries() -> Vec<RuntimeBinaryMetadata> {
     vec![
         RuntimeBinaryMetadata {
             name: "Whisperfile (Transcription Engine)".to_string(),
-            url: "https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile".to_string(),
+            url:
+                "https://huggingface.co/Mozilla/whisperfile/resolve/main/whisper-tiny.en.llamafile"
+                    .to_string(),
             file_name: "whisperfile".to_string(),
             size_mb: 83.0,
         },
         RuntimeBinaryMetadata {
             name: "Llamafile (LLM Runtime)".to_string(),
-            url: "https://github.com/Mozilla-Ocho/llamafile/releases/download/0.9.3/llamafile-0.9.3".to_string(),
+            url:
+                "https://github.com/Mozilla-Ocho/llamafile/releases/download/0.9.3/llamafile-0.9.3"
+                    .to_string(),
             file_name: "llamafile".to_string(),
             size_mb: 293.0,
         },
@@ -150,7 +159,8 @@ pub fn get_runtime_binaries() -> Vec<RuntimeBinaryMetadata> {
 pub fn get_medllama_metadata() -> MedLlamaModelMetadata {
     MedLlamaModelMetadata {
         name: "MedLlama Model (Medical Notes)".to_string(),
-        default_url: "https://huggingface.co/Johnyquest7/med_llm_small/resolve/main/med_llama.gguf".to_string(),
+        default_url: "https://huggingface.co/Johnyquest7/med_llm_small/resolve/main/med_llama.gguf"
+            .to_string(),
         file_name: "med_llama.gguf".to_string(),
         size_mb: 770.0,
     }
@@ -161,31 +171,36 @@ pub fn get_whisper_model_info(size: WhisperModelSize) -> ModelDownloadInfo {
     match size {
         WhisperModelSize::Tiny => ModelDownloadInfo {
             name: "Whisper Tiny Model (English)".to_string(),
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin"
+                .to_string(),
             file_name: "whisper-tiny.en.gguf".to_string(),
             size_mb: 141.0,
         },
         WhisperModelSize::Base => ModelDownloadInfo {
             name: "Whisper Base Model (English)".to_string(),
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
+                .to_string(),
             file_name: "whisper-base.en.gguf".to_string(),
             size_mb: 142.0,
         },
         WhisperModelSize::Small => ModelDownloadInfo {
             name: "Whisper Small Model (English)".to_string(),
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin"
+                .to_string(),
             file_name: "whisper-small.en.gguf".to_string(),
             size_mb: 466.0,
         },
         WhisperModelSize::Medium => ModelDownloadInfo {
             name: "Whisper Medium Model (English)".to_string(),
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin"
+                .to_string(),
             file_name: "whisper-medium.en.gguf".to_string(),
             size_mb: 1500.0,
         },
         WhisperModelSize::Large => ModelDownloadInfo {
             name: "Whisper Large Model (Multilingual)".to_string(),
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin".to_string(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin"
+                .to_string(),
             file_name: "whisper-large.gguf".to_string(),
             size_mb: 3100.0,
         },
@@ -193,7 +208,12 @@ pub fn get_whisper_model_info(size: WhisperModelSize) -> ModelDownloadInfo {
 }
 
 /// Create ModelDownloadInfo from custom URL and model name
-pub fn create_custom_model_info(name: String, url: String, file_name: String, size_mb: f64) -> ModelDownloadInfo {
+pub fn create_custom_model_info(
+    name: String,
+    url: String,
+    file_name: String,
+    size_mb: f64,
+) -> ModelDownloadInfo {
     ModelDownloadInfo {
         name,
         url,
@@ -232,7 +252,9 @@ pub fn get_required_models() -> Vec<ModelDownloadInfo> {
 }
 
 /// Get the list of models that need to be downloaded based on user preferences
-pub fn get_required_models_with_preferences(preferences: &ModelPreferences) -> Vec<ModelDownloadInfo> {
+pub fn get_required_models_with_preferences(
+    preferences: &ModelPreferences,
+) -> Vec<ModelDownloadInfo> {
     let mut models = Vec::new();
 
     // Add runtime binaries
@@ -292,7 +314,10 @@ pub async fn check_models_exist(app: &AppHandle) -> Result<Vec<(ModelDownloadInf
 }
 
 /// Check if all required models are already downloaded based on user preferences
-pub async fn check_models_exist_with_preferences(app: &AppHandle, preferences: &ModelPreferences) -> Result<Vec<(ModelDownloadInfo, bool)>, String> {
+pub async fn check_models_exist_with_preferences(
+    app: &AppHandle,
+    preferences: &ModelPreferences,
+) -> Result<Vec<(ModelDownloadInfo, bool)>, String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let binaries_dir = app_data_dir.join("binaries");
     let models_dir = binaries_dir.join("models");
@@ -370,7 +395,10 @@ pub async fn get_models_info(app: &AppHandle) -> Result<Vec<ModelInfo>, String> 
 }
 
 /// Get detailed information about all models including their installation status based on user preferences
-pub async fn get_models_info_with_preferences(app: &AppHandle, preferences: &ModelPreferences) -> Result<Vec<ModelInfo>, String> {
+pub async fn get_models_info_with_preferences(
+    app: &AppHandle,
+    preferences: &ModelPreferences,
+) -> Result<Vec<ModelInfo>, String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let binaries_dir = app_data_dir.join("binaries");
     let models_dir = binaries_dir.join("models");
@@ -419,7 +447,9 @@ pub async fn list_downloaded_whisper_models(app: &AppHandle) -> Result<Vec<Strin
     if let Ok(entries) = std::fs::read_dir(&models_dir) {
         for entry in entries.flatten() {
             if let Ok(file_name) = entry.file_name().into_string() {
-                if file_name.starts_with("whisper-") && (file_name.ends_with(".gguf") || file_name.ends_with(".bin")) {
+                if file_name.starts_with("whisper-")
+                    && (file_name.ends_with(".gguf") || file_name.ends_with(".bin"))
+                {
                     whisper_models.push(file_name);
                 }
             }
@@ -448,8 +478,7 @@ pub async fn delete_model_file(app: &AppHandle, file_name: String) -> Result<(),
         return Err(format!("Model file not found: {}", file_name));
     }
 
-    std::fs::remove_file(&file_path)
-        .map_err(|e| format!("Failed to delete model file: {}", e))?;
+    std::fs::remove_file(&file_path).map_err(|e| format!("Failed to delete model file: {}", e))?;
 
     Ok(())
 }
@@ -459,7 +488,9 @@ pub async fn download_model(
     app: &AppHandle,
     model: ModelDownloadInfo,
 ) -> Result<PathBuf, DownloadError> {
-    let app_data_dir = app.path().app_local_data_dir()
+    let app_data_dir = app
+        .path()
+        .app_local_data_dir()
         .map_err(|e| DownloadError::Failed(e.to_string()))?;
 
     let binaries_dir = app_data_dir.join("binaries");
@@ -478,13 +509,16 @@ pub async fn download_model(
 
     // If file already exists, skip download
     if target_path.exists() {
-        let _ = app.emit("download-progress", DownloadProgress {
-            file_name: model.file_name.clone(),
-            downloaded_bytes: 0,
-            total_bytes: Some((model.size_mb * 1024.0 * 1024.0) as u64),
-            percentage: 100.0,
-            status: DownloadStatus::Completed,
-        });
+        let _ = app.emit(
+            "download-progress",
+            DownloadProgress {
+                file_name: model.file_name.clone(),
+                downloaded_bytes: 0,
+                total_bytes: Some((model.size_mb * 1024.0 * 1024.0) as u64),
+                percentage: 100.0,
+                status: DownloadStatus::Completed,
+            },
+        );
         return Ok(target_path);
     }
 
@@ -513,13 +547,16 @@ pub async fn download_model(
     let mut stream = response.bytes_stream();
 
     // Emit initial progress
-    let _ = app.emit("download-progress", DownloadProgress {
-        file_name: model.file_name.clone(),
-        downloaded_bytes: 0,
-        total_bytes: total_size,
-        percentage: 0.0,
-        status: DownloadStatus::Downloading,
-    });
+    let _ = app.emit(
+        "download-progress",
+        DownloadProgress {
+            file_name: model.file_name.clone(),
+            downloaded_bytes: 0,
+            total_bytes: total_size,
+            percentage: 0.0,
+            status: DownloadStatus::Downloading,
+        },
+    );
 
     // Download in chunks and emit progress
     while let Some(item) = stream.next().await {
@@ -535,13 +572,16 @@ pub async fn download_model(
 
         // Emit progress every 1MB or so to avoid overwhelming the frontend
         if downloaded % (1024 * 1024) < 8192 || percentage >= 100.0 {
-            let _ = app.emit("download-progress", DownloadProgress {
-                file_name: model.file_name.clone(),
-                downloaded_bytes: downloaded,
-                total_bytes: total_size,
-                percentage,
-                status: DownloadStatus::Downloading,
-            });
+            let _ = app.emit(
+                "download-progress",
+                DownloadProgress {
+                    file_name: model.file_name.clone(),
+                    downloaded_bytes: downloaded,
+                    total_bytes: total_size,
+                    percentage,
+                    status: DownloadStatus::Downloading,
+                },
+            );
         }
     }
 
@@ -564,13 +604,16 @@ pub async fn download_model(
     }
 
     // Emit completion
-    let _ = app.emit("download-progress", DownloadProgress {
-        file_name: model.file_name.clone(),
-        downloaded_bytes: downloaded,
-        total_bytes: total_size,
-        percentage: 100.0,
-        status: DownloadStatus::Completed,
-    });
+    let _ = app.emit(
+        "download-progress",
+        DownloadProgress {
+            file_name: model.file_name.clone(),
+            downloaded_bytes: downloaded,
+            total_bytes: total_size,
+            percentage: 100.0,
+            status: DownloadStatus::Completed,
+        },
+    );
 
     println!("Download complete: {:?}", target_path);
 

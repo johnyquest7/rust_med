@@ -132,7 +132,7 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
       generatedNote = '';
 
       const result = await tauriService.generateMedicalNote(transcript, noteType);
-      
+
       if (result.success) {
         generatedNote = result.note;
         toast.success('Medical note generated successfully!');
@@ -156,7 +156,7 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
       setTimeout(() => {
         copied = false;
       }, 2000);
-    } catch (err) {
+    } catch {
       toast.error('Failed to copy to clipboard');
     }
   }
@@ -169,15 +169,13 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
   }
 </script>
 
-<div class="container mx-auto p-6 max-w-6xl">
+<div class="container mx-auto max-w-6xl p-6">
   <div class="mb-6">
     <h1 class="text-3xl font-bold">Medical Note Playground</h1>
-    <p class="text-muted-foreground mt-2">
-      Test the medical note generation functionality with custom transcripts
-    </p>
+    <p class="mt-2 text-muted-foreground">Test the medical note generation functionality with custom transcripts</p>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
     <!-- Input Section -->
     <Card>
       <CardHeader>
@@ -185,9 +183,7 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
           <Play class="h-5 w-5" />
           Input Transcript
         </CardTitle>
-        <CardDescription>
-          Enter a doctor-patient conversation transcript to generate a medical note
-        </CardDescription>
+        <CardDescription>Enter a doctor-patient conversation transcript to generate a medical note</CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">
         <div class="space-y-2">
@@ -217,39 +213,39 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
         <!-- Sample Transcripts -->
         <div class="space-y-2">
           <Label>Sample Transcripts</Label>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onclick={() => transcript = sampleTranscripts.routine}
-              class="w-full text-left justify-start text-xs"
+          <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={() => (transcript = sampleTranscripts.routine)}
+              class="w-full justify-start text-left text-xs"
             >
               Routine Checkup
             </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onclick={() => transcript = sampleTranscripts.chestPain}
-              class="w-full text-left justify-start text-xs"
+
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={() => (transcript = sampleTranscripts.chestPain)}
+              class="w-full justify-start text-left text-xs"
             >
               Chest Pain Visit
             </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onclick={() => transcript = sampleTranscripts.diabetes}
-              class="w-full text-left justify-start text-xs"
+
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={() => (transcript = sampleTranscripts.diabetes)}
+              class="w-full justify-start text-left text-xs"
             >
               Diabetes Follow-up
             </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onclick={() => transcript = sampleTranscripts.pediatric}
-              class="w-full text-left justify-start text-xs"
+
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={() => (transcript = sampleTranscripts.pediatric)}
+              class="w-full justify-start text-left text-xs"
             >
               Pediatric Visit
             </Button>
@@ -257,23 +253,17 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
         </div>
 
         <div class="flex gap-2">
-          <Button 
-            onclick={generateNote} 
-            disabled={isGenerating || !transcript.trim()}
-            class="flex-1"
-          >
+          <Button onclick={generateNote} disabled={isGenerating || !transcript.trim()} class="flex-1">
             {#if isGenerating}
-              <Loader2 class="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 class="mr-2 h-4 w-4 animate-spin" />
               Generating...
             {:else}
-              <Play class="h-4 w-4 mr-2" />
+              <Play class="mr-2 h-4 w-4" />
               Generate Note
             {/if}
           </Button>
-          
-          <Button variant="outline" onclick={clearAll}>
-            Clear All
-          </Button>
+
+          <Button variant="outline" onclick={clearAll}>Clear All</Button>
         </div>
 
         {#if error}
@@ -287,18 +277,14 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
     <!-- Output Section -->
     <Card>
       <CardHeader>
-        <CardTitle class="flex items-center gap-2">
-          Generated Medical Note
-        </CardTitle>
-        <CardDescription>
-          The AI-generated medical note will appear here
-        </CardDescription>
+        <CardTitle class="flex items-center gap-2">Generated Medical Note</CardTitle>
+        <CardDescription>The AI-generated medical note will appear here</CardDescription>
       </CardHeader>
       <CardContent>
         {#if isGenerating}
           <div class="flex items-center justify-center py-12">
             <div class="text-center">
-              <Loader2 class="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+              <Loader2 class="mx-auto mb-4 h-8 w-8 animate-spin text-primary" />
               <p class="text-muted-foreground">Generating medical note...</p>
             </div>
           </div>
@@ -306,12 +292,7 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <h4 class="text-sm font-medium text-muted-foreground">Generated Medical Note</h4>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onclick={copyToClipboard}
-                class="flex items-center gap-1"
-              >
+              <Button variant="outline" size="sm" onclick={copyToClipboard} class="flex items-center gap-1">
                 {#if copied}
                   <Check class="h-3 w-3" />
                   Copied!
@@ -327,7 +308,7 @@ Doctor: I can see her right ear is red and inflamed. There's also some fluid beh
           <div class="flex items-center justify-center py-12 text-muted-foreground">
             <div class="text-center">
               <p>No note generated yet</p>
-              <p class="text-sm mt-1">Enter a transcript and click "Generate Note" to get started</p>
+              <p class="mt-1 text-sm">Enter a transcript and click "Generate Note" to get started</p>
             </div>
           </div>
         {/if}

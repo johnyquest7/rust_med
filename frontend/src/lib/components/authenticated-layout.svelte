@@ -15,7 +15,6 @@
   const auth = useAuth();
 
   // State for determining which form to show
-  let showRegistration = $state(false);
   let authFileExists = $state(false);
   let isLoading = $state(true);
   let setupCompleted = $state(false);
@@ -25,7 +24,7 @@
   // Check authentication status and setup status on mount
   onMount(async () => {
     try {
-      if (!browser || typeof (window as any).__TAURI__ === 'undefined') {
+      if (!browser || typeof (window as unknown as { __TAURI__?: unknown }).__TAURI__ === 'undefined') {
         isLoading = false;
         checkingSetup = false;
         return;
@@ -33,7 +32,9 @@
 
       // Check setup status first (legacy check for database flag)
       try {
-        const setupStatus = await (window as any).__TAURI__.core.invoke('check_setup_status');
+        const setupStatus = await (
+          window as unknown as { __TAURI__: { core: { invoke: (cmd: string) => Promise<boolean> } } }
+        ).__TAURI__.core.invoke('check_setup_status');
         setupCompleted = setupStatus;
       } catch (error) {
         console.error('Failed to check setup status:', error);
@@ -43,7 +44,9 @@
 
       // Check if all required models are installed
       try {
-        const allModelsInstalled = await (window as any).__TAURI__.core.invoke('check_all_models_installed');
+        const allModelsInstalled = await (
+          window as unknown as { __TAURI__: { core: { invoke: (cmd: string) => Promise<boolean> } } }
+        ).__TAURI__.core.invoke('check_all_models_installed');
         modelsInstalled = allModelsInstalled;
 
         // If models are not installed, we need to show the setup wizard
@@ -62,7 +65,9 @@
       checkingSetup = false;
 
       // Then check auth status
-      const response: AuthResponse = await (window as any).__TAURI__.core.invoke('check_auth_status');
+      const response: AuthResponse = await (
+        window as unknown as { __TAURI__: { core: { invoke: (cmd: string) => Promise<AuthResponse> } } }
+      ).__TAURI__.core.invoke('check_auth_status');
       authFileExists = response.success;
 
       if (authFileExists && response.user) {
@@ -80,18 +85,8 @@
 
   // Reactive state from auth context
   let isAuthenticated = $derived(auth.state.isAuthenticated);
-  let authError = $derived(auth.state.error);
 
   // Switch between login and registration forms
-  function switchToRegistration() {
-    showRegistration = true;
-    auth.clearError();
-  }
-
-  function switchToLogin() {
-    showRegistration = false;
-    auth.clearError();
-  }
 </script>
 
 {#if isLoading || checkingSetup}

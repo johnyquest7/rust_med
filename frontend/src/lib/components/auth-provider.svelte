@@ -4,7 +4,7 @@
   import type { AuthContext } from '$lib/types.js';
 
   // Props
-  let { children } = $props<{ children: any }>();
+  let { children } = $props<{ children: import('svelte').Snippet }>();
 
   // Set the auth context for child components
   setContext<AuthContext>('auth', authContext);

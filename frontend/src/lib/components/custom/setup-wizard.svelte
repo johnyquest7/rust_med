@@ -6,7 +6,12 @@
   import { Input } from '$lib/components/ui/input';
   import * as Select from '$lib/components/ui/select';
   import { tauriService } from '$lib/tauriService';
-  import type { WhisperModelSize, WhisperModelMetadata, RuntimeBinaryMetadata, MedLlamaModelMetadata } from '$lib/types';
+  import type {
+    WhisperModelSize,
+    WhisperModelMetadata,
+    RuntimeBinaryMetadata,
+    MedLlamaModelMetadata
+  } from '$lib/types';
   import Download from '@lucide/svelte/icons/download';
   import CheckCircle from '@lucide/svelte/icons/check-circle';
   import XCircle from '@lucide/svelte/icons/x-circle';
@@ -40,7 +45,6 @@
   let models = $state<ModelStatus[]>([]);
   let isDownloading = $state(false);
   let setupComplete = $state(false);
-  let currentDownloadingIndex = $state(-1);
 
   // User preferences
   let selectedWhisperSize: WhisperModelSize = $state('tiny');
@@ -92,7 +96,7 @@
   }
 
   function getWhisperModelInfo(size: WhisperModelSize): WhisperModelMetadata | undefined {
-    return whisperModelOptions.find(opt => opt.value === size);
+    return whisperModelOptions.find((opt) => opt.value === size);
   }
 
   function buildModelsList(): ModelDownloadInfo[] {
@@ -157,10 +161,11 @@
       const progress = event.payload;
 
       // Find the model by matching the file_name from progress with model.file_name
-      const modelIndex = models.findIndex((m) => 
-        progress.file_name === m.model.file_name || 
-        progress.file_name.includes(m.model.file_name) ||
-        m.model.file_name.includes(progress.file_name)
+      const modelIndex = models.findIndex(
+        (m) =>
+          progress.file_name === m.model.file_name ||
+          progress.file_name.includes(m.model.file_name) ||
+          m.model.file_name.includes(progress.file_name)
       );
 
       if (modelIndex !== -1) {
@@ -264,13 +269,13 @@
   }
 
   async function retryFailedDownloads() {
-    const failedModels = models.filter(m => m.status === 'failed');
+    const failedModels = models.filter((m) => m.status === 'failed');
     if (failedModels.length === 0) return;
 
     isDownloading = true;
 
     for (const failedModel of failedModels) {
-      const modelIndex = models.findIndex(m => m.model.file_name === failedModel.model.file_name);
+      const modelIndex = models.findIndex((m) => m.model.file_name === failedModel.model.file_name);
       if (modelIndex === -1) continue;
 
       currentDownloadingIndex = modelIndex;
@@ -304,7 +309,7 @@
   }
 
   function hasFailedDownloads() {
-    return models.some(m => m.status === 'failed');
+    return models.some((m) => m.status === 'failed');
   }
 
   async function handleWhisperModelChange() {
@@ -356,9 +361,7 @@
   <Card class="w-full max-w-2xl">
     <CardHeader>
       <CardTitle class="text-2xl">Welcome to Medical Note Generator</CardTitle>
-      <CardDescription>
-        First-time setup: Download AI models required for the application to function.
-      </CardDescription>
+      <CardDescription>First-time setup: Download AI models required for the application to function.</CardDescription>
     </CardHeader>
 
     <CardContent class="space-y-6">
@@ -377,7 +380,6 @@
           </div>
         </div>
 
-
         <!-- Overall Progress -->
         {#if isDownloading}
           <div class="space-y-2">
@@ -394,7 +396,7 @@
         <!-- Models List -->
         <div class="space-y-3">
           <h3 class="text-sm font-medium">AI Models</h3>
-          {#each models as modelStatus, index}
+          {#each models as modelStatus, index (modelStatus.name)}
             <div class="rounded-lg border p-4">
               <div class="space-y-3">
                 <!-- Model Header -->
@@ -412,7 +414,7 @@
                       {/if}
                       <p class="text-sm font-medium">{modelStatus.model.name}</p>
                     </div>
-                    <p class="text-xs text-muted-foreground pl-6">
+                    <p class="pl-6 text-xs text-muted-foreground">
                       Size: {modelStatus.model.size_mb.toFixed(0)} MB
                     </p>
                   </div>
@@ -422,7 +424,7 @@
                 {#if !isDownloading && modelStatus.status !== 'downloading'}
                   {#if modelStatus.model.name.includes('Whisper') && !modelStatus.model.name.includes('file')}
                     <!-- Whisper Model Selection -->
-                    <div class="pl-6 space-y-2">
+                    <div class="space-y-2 pl-6">
                       <Label for="whisper-size-select-{index}" class="text-xs font-medium text-muted-foreground">
                         Model Size
                       </Label>
@@ -431,11 +433,12 @@
                         bind:value={selectedWhisperSize}
                         onValueChange={handleWhisperModelChange}
                       >
-                        <Select.Trigger id="whisper-size-select-{index}" class="w-full h-8 text-xs">
-                          {whisperModelOptions.find(opt => opt.value === selectedWhisperSize)?.label || 'Select model size'}
+                        <Select.Trigger id="whisper-size-select-{index}" class="h-8 w-full text-xs">
+                          {whisperModelOptions.find((opt) => opt.value === selectedWhisperSize)?.label ||
+                            'Select model size'}
                         </Select.Trigger>
                         <Select.Content>
-                          {#each whisperModelOptions as option}
+                          {#each whisperModelOptions as option (option.value)}
                             <Select.Item value={option.value} label={option.label}>{option.label}</Select.Item>
                           {/each}
                         </Select.Content>
@@ -446,7 +449,7 @@
                     </div>
                   {:else if modelStatus.model.name.includes('MedLlama')}
                     <!-- MedLlama URL Input -->
-                    <div class="pl-6 space-y-2">
+                    <div class="space-y-2 pl-6">
                       <Label for="medllama-url-input-{index}" class="text-xs font-medium text-muted-foreground">
                         Model URL
                       </Label>
@@ -458,16 +461,14 @@
                         class="text-xs"
                         onchange={handleMedLlamaUrlChange}
                       />
-                      <p class="text-xs text-muted-foreground">
-                        Direct download link to a .gguf model file.
-                      </p>
+                      <p class="text-xs text-muted-foreground">Direct download link to a .gguf model file.</p>
                     </div>
                   {/if}
                 {/if}
 
                 <!-- Download Progress -->
                 {#if modelStatus.status === 'downloading'}
-                  <div class="space-y-1 pl-6 pt-2">
+                  <div class="space-y-1 pt-2 pl-6">
                     <div class="flex items-center justify-between text-xs">
                       <span class="text-muted-foreground">
                         {modelStatus.downloadedMB.toFixed(1)} / {modelStatus.totalMB.toFixed(1)} MB
@@ -477,7 +478,7 @@
                     <Progress value={modelStatus.progress} class="h-1.5" />
                   </div>
                 {:else if modelStatus.status === 'failed' && modelStatus.error}
-                  <p class="text-xs text-red-600 pl-6 pt-1">{modelStatus.error}</p>
+                  <p class="pt-1 pl-6 text-xs text-red-600">{modelStatus.error}</p>
                 {/if}
               </div>
             </div>
@@ -486,16 +487,14 @@
 
         <!-- Action Buttons -->
         <div class="flex items-center justify-between pt-4">
-          <div class="text-sm text-muted-foreground text-balance">
+          <div class="text-sm text-balance text-muted-foreground">
             {#if isDownloading}
               Downloading models... This may take several minutes.
             {:else if allModelsDownloaded()}
               All models downloaded successfully!
             {:else if hasFailedDownloads()}
               Some downloads failed. You can retry failed downloads or continue with available models.
-            {:else}
-              {''}
-            {/if}
+            {:else}{/if}
           </div>
           <div class="flex gap-2">
             {#if hasFailedDownloads() && !isDownloading}
@@ -513,14 +512,14 @@
                 Complete
               {:else}
                 <Download class="mr-2 h-4 w-4" />
-                  Download Models
+                Download Models
               {/if}
             </Button>
           </div>
         </div>
       {:else}
         <!-- Setup Complete -->
-        <div class="space-y-4 text-center py-8">
+        <div class="space-y-4 py-8 text-center">
           <CheckCircle class="mx-auto h-16 w-16 text-green-600" />
           <div class="space-y-2">
             <h3 class="text-xl font-semibold">Setup Complete!</h3>

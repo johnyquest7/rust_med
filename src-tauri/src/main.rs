@@ -3,15 +3,15 @@
     windows_subsystem = "windows"
 )]
 
-use tauri::{Manager, Emitter};
-use serde::{Serialize, Deserialize};
-use tauri_plugin_shell::ShellExt;
-use std::path::PathBuf;
-use std::fs;
 use chrono::{DateTime, Local};
-use std::io::{BufRead, BufReader};
-use std::process::Stdio;
 use rusqlite::Connection;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
+use std::process::Stdio;
+use tauri::{Emitter, Manager};
+use tauri_plugin_shell::ShellExt;
 
 mod auth;
 mod constants;
@@ -23,20 +23,24 @@ use db::*;
 use downloads::*;
 
 // Additional imports for model management
-use db::{ModelPreferences, load_model_preferences, save_model_preferences,
-         model_preferences_exist, get_default_model_preferences};
+use db::{
+    get_default_model_preferences, load_model_preferences, model_preferences_exist,
+    save_model_preferences, ModelPreferences,
+};
 
 /// Helper to get database connection
 fn get_db_connection(app: &tauri::AppHandle) -> Result<Connection, String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let db_path = app_data_dir.join("medical_notes.db");
 
-    initialize_database(&db_path)
-        .map_err(|e| format!("Failed to initialize database: {}", e))
+    initialize_database(&db_path).map_err(|e| format!("Failed to initialize database: {}", e))
 }
 
 /// Helper function to get the DEK from the database with password
-async fn get_dek_from_auth_with_password(app: &tauri::AppHandle, password: &str) -> Result<Vec<u8>, String> {
+async fn get_dek_from_auth_with_password(
+    app: &tauri::AppHandle,
+    password: &str,
+) -> Result<Vec<u8>, String> {
     let conn = get_db_connection(app)?;
 
     // Check if auth exists in database
@@ -47,20 +51,19 @@ async fn get_dek_from_auth_with_password(app: &tauri::AppHandle, password: &str)
     let auth_file = load_auth_from_db(&conn)
         .map_err(|e| format!("Failed to load auth from database: {}", e))?;
 
-    get_dek(&auth_file, password)
-        .map_err(|e| format!("Failed to decrypt DEK: {}", e))
+    get_dek(&auth_file, password).map_err(|e| format!("Failed to decrypt DEK: {}", e))
 }
 
 /// Convert PatientNote to EncryptedNote
 fn encrypt_note(note: &PatientNote, dek: &[u8]) -> Result<EncryptedNote, String> {
     // Serialize the note to JSON
-    let json_data = serde_json::to_string(note)
-        .map_err(|e| format!("Failed to serialize note: {}", e))?;
-    
+    let json_data =
+        serde_json::to_string(note).map_err(|e| format!("Failed to serialize note: {}", e))?;
+
     // Encrypt the entire JSON blob
-    let (encrypted_data, nonce) = encrypt_data(&json_data, dek)
-        .map_err(|e| format!("Failed to encrypt note data: {}", e))?;
-    
+    let (encrypted_data, nonce) =
+        encrypt_data(&json_data, dek).map_err(|e| format!("Failed to encrypt note data: {}", e))?;
+
     Ok(EncryptedNote {
         id: note.id.clone(),
         encrypted_data,
@@ -74,11 +77,11 @@ fn decrypt_note(encrypted_note: &EncryptedNote, dek: &[u8]) -> Result<PatientNot
     // Decrypt the entire JSON blob
     let json_data = decrypt_data(&encrypted_note.encrypted_data, dek, &encrypted_note.nonce)
         .map_err(|e| format!("Failed to decrypt note data: {}", e))?;
-    
+
     // Deserialize the JSON back to PatientNote
     let note: PatientNote = serde_json::from_str(&json_data)
         .map_err(|e| format!("Failed to deserialize note: {}", e))?;
-    
+
     Ok(note)
 }
 
@@ -133,40 +136,39 @@ struct LoadNotesResult {
 #[tauri::command]
 async fn ensure_app_directory(app: tauri::AppHandle) -> Result<String, String> {
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    
+
     // Create the directory if it doesn't exist
     if !app_data_dir.exists() {
-        std::fs::create_dir_all(&app_data_dir).map_err(|e| {
-            format!("Failed to create app directory: {}", e)
-        })?;
+        std::fs::create_dir_all(&app_data_dir)
+            .map_err(|e| format!("Failed to create app directory: {}", e))?;
     }
-    
+
     Ok(app_data_dir.to_string_lossy().to_string())
 }
 
 #[tauri::command]
 async fn validate_audio_file(audio_path: String) -> Result<String, String> {
     println!("Validating audio file: {}", audio_path);
-    
+
     // Check if file exists
     let path = std::path::Path::new(&audio_path);
     if !path.exists() {
         return Err(format!("Audio file does not exist: {}", audio_path));
     }
-    
+
     // Check file size
     let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
     let file_size = metadata.len();
     println!("Audio file size: {} bytes", file_size);
-    
+
     if file_size < 44 {
         return Err("Audio file is too small (less than WAV header size)".to_string());
     }
-    
+
     if file_size < 1000 {
         return Err("Audio file is suspiciously small - may contain no audio data".to_string());
     }
-    
+
     // Try to read WAV header if it's a WAV file
     if audio_path.ends_with(".wav") {
         if let Ok(mut file) = std::fs::File::open(path) {
@@ -175,26 +177,30 @@ async fn validate_audio_file(audio_path: String) -> Result<String, String> {
             if file.read_exact(&mut header).is_ok() {
                 let riff = String::from_utf8_lossy(&header[0..4]);
                 let wave = String::from_utf8_lossy(&header[8..12]);
-                
+
                 if riff != "RIFF" || wave != "WAVE" {
                     return Err("Invalid WAV file format".to_string());
                 }
-                
+
                 println!("Valid WAV header detected");
             }
         }
     }
-    
+
     Ok(format!("Audio file validated: {} bytes", file_size))
 }
 
 #[tauri::command]
-async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<TranscriptionResult, String> {
+async fn transcribe_audio(
+    app: tauri::AppHandle,
+    audio_path: String,
+) -> Result<TranscriptionResult, String> {
     println!("Starting transcription for: {}", audio_path);
-    
+
     // Emit transcription started event
-    app.emit("transcription-progress", "Starting transcription...").ok();
-    
+    app.emit("transcription-progress", "Starting transcription...")
+        .ok();
+
     // Validate audio file first
     if let Err(validation_error) = validate_audio_file(audio_path.clone()).await {
         return Ok(TranscriptionResult {
@@ -203,7 +209,7 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
             error: Some(format!("Audio validation failed: {}", validation_error)),
         });
     }
-    
+
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     println!("App data directory: {:?}", app_data_dir);
 
@@ -221,7 +227,7 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
         // Development: relative to project root
         PathBuf::from("binaries").join(whisperfile_name),
     ];
-    
+
     let mut whisperfile_path = None;
     for path in &whisperfile_paths {
         println!("Checking whisperfile path: {:?}", path);
@@ -231,7 +237,7 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
             break;
         }
     }
-    
+
     let whisperfile_path = match whisperfile_path {
         Some(path) => path,
         None => {
@@ -242,7 +248,10 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
             return Ok(TranscriptionResult {
                 success: false,
                 transcript: String::new(),
-                error: Some(format!("Whisperfile not found. Tried: {:?}", whisperfile_paths)),
+                error: Some(format!(
+                    "Whisperfile not found. Tried: {:?}",
+                    whisperfile_paths
+                )),
             });
         }
     };
@@ -251,7 +260,10 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
     let conn = get_db_connection(&app)?;
     let preferred_model = match load_model_preferences(&conn) {
         Ok(prefs) => {
-            println!("Using preferred whisper model: {}", prefs.whisper_model_filename);
+            println!(
+                "Using preferred whisper model: {}",
+                prefs.whisper_model_filename
+            );
             Some(prefs.whisper_model_filename)
         }
         Err(_) => {
@@ -266,7 +278,7 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
         "ggml-tiny.en.bin",
         "whisper-tiny.en.bin",
         "whisper-small.en.gguf",
-        "ggml-small.en.bin"
+        "ggml-small.en.bin",
     ];
 
     let mut model_names_to_try = Vec::new();
@@ -316,11 +328,11 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
     };
 
     // Check if the audio format is supported by whisperfile
-    let is_supported_format = audio_path.ends_with(".wav") || 
-                             audio_path.ends_with(".mp3") || 
-                             audio_path.ends_with(".flac") || 
-                             audio_path.ends_with(".ogg");
-    
+    let is_supported_format = audio_path.ends_with(".wav")
+        || audio_path.ends_with(".mp3")
+        || audio_path.ends_with(".flac")
+        || audio_path.ends_with(".ogg");
+
     if !is_supported_format {
         let file_extension = audio_path.split('.').last().unwrap_or("unknown");
         return Ok(TranscriptionResult {
@@ -332,22 +344,31 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
             )),
         });
     }
-    
+
     println!("Audio file for transcription: {}", audio_path);
 
     // Execute whisperfile with correct arguments based on the documentation
-    println!("Executing whisperfile with args: -m {:?} -f {} --no-prints", model_path, audio_path);
-    
+    println!(
+        "Executing whisperfile with args: -m {:?} -f {} --no-prints",
+        model_path, audio_path
+    );
+
     // Emit progress update
-    app.emit("transcription-progress", "Processing audio with Whisper model...").ok();
-    
+    app.emit(
+        "transcription-progress",
+        "Processing audio with Whisper model...",
+    )
+    .ok();
+
     let output = app
         .shell()
         .command(&whisperfile_path)
         .args([
-            "-m", &model_path.to_string_lossy(),
-            "-f", &audio_path,
-            "--no-prints"  // Suppress debug output - this is the key flag for whisperfile
+            "-m",
+            &model_path.to_string_lossy(),
+            "-f",
+            &audio_path,
+            "--no-prints", // Suppress debug output - this is the key flag for whisperfile
         ])
         .output()
         .await
@@ -356,14 +377,16 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
     println!("Whisperfile exit status: {:?}", output.status);
     println!("Whisperfile stdout length: {}", output.stdout.len());
     println!("Whisperfile stderr length: {}", output.stderr.len());
-    
+
     // Print stderr to see what whisperfile is saying
     if !output.stderr.is_empty() {
         let stderr_str = String::from_utf8_lossy(&output.stderr);
         println!("Whisperfile stderr: {}", stderr_str);
-        
+
         // Check for specific error patterns
-        if stderr_str.contains("failed to read pcm frames") || stderr_str.contains("At end otalerror") {
+        if stderr_str.contains("failed to read pcm frames")
+            || stderr_str.contains("At end otalerror")
+        {
             return Ok(TranscriptionResult {
                 success: false,
                 transcript: String::new(),
@@ -375,13 +398,13 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
     if output.status.success() {
         let stdout_str = String::from_utf8_lossy(&output.stdout);
         println!("Raw whisperfile output: {}", stdout_str);
-        
+
         let transcript = parse_whisper_output(&stdout_str);
         println!("Parsed transcript: {}", transcript);
-        
+
         // Emit the transcript as it's being processed
         app.emit("transcription-text", &transcript).ok();
-        
+
         // Check for blank audio detection
         if transcript.contains("[BLANK_AUDIO]") || transcript.trim().is_empty() {
             return Ok(TranscriptionResult {
@@ -390,7 +413,7 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
                 error: Some("No speech detected in audio. Please ensure you speak clearly into the microphone and try recording again.".to_string()),
             });
         }
-        
+
         Ok(TranscriptionResult {
             success: true,
             transcript,
@@ -399,7 +422,7 @@ async fn transcribe_audio(app: tauri::AppHandle, audio_path: String) -> Result<T
     } else {
         let stderr_str = String::from_utf8_lossy(&output.stderr);
         println!("Whisperfile error: {}", stderr_str);
-        
+
         Ok(TranscriptionResult {
             success: false,
             transcript: String::new(),
@@ -414,12 +437,19 @@ async fn generate_medical_note(
     transcript: String,
     note_type: String,
 ) -> Result<MedicalNoteResult, String> {
-    println!("Starting medical note generation for transcript: {}", transcript);
-    
+    println!(
+        "Starting medical note generation for transcript: {}",
+        transcript
+    );
+
     // Emit note generation started event
     let note_type_display = if note_type == "soap" { "SOAP" } else { "Full" };
-    app.emit("note-generation-progress", format!("Generating {} medical note...", note_type_display)).ok();
-    
+    app.emit(
+        "note-generation-progress",
+        format!("Generating {} medical note...", note_type_display),
+    )
+    .ok();
+
     let app_data_dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
 
     // Determine the correct llamafile executable
@@ -430,7 +460,8 @@ async fn generate_medical_note(
     };
 
     // Get the current working directory to build absolute paths
-    let current_dir = std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
+    let current_dir =
+        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
     let project_root = if current_dir.ends_with("src-tauri") {
         current_dir.parent().unwrap_or(&current_dir).to_path_buf()
     } else {
@@ -444,7 +475,7 @@ async fn generate_medical_note(
         // Development: absolute from project root
         project_root.join("binaries").join(llamafile_name),
     ];
-    
+
     let mut llamafile_path = None;
     for path in &llamafile_paths {
         println!("Checking llamafile path: {:?}", path);
@@ -454,7 +485,7 @@ async fn generate_medical_note(
             break;
         }
     }
-    
+
     let llamafile_path = match llamafile_path {
         Some(path) => path,
         None => {
@@ -470,7 +501,10 @@ async fn generate_medical_note(
     let conn = get_db_connection(&app)?;
     let preferred_model = match load_model_preferences(&conn) {
         Ok(prefs) => {
-            println!("Using preferred MedLlama model: {}", prefs.med_llama_filename);
+            println!(
+                "Using preferred MedLlama model: {}",
+                prefs.med_llama_filename
+            );
             Some(prefs.med_llama_filename)
         }
         Err(_) => {
@@ -485,7 +519,7 @@ async fn generate_medical_note(
         "llama-2-7b-chat.gguf",
         "llama-2-13b-chat.gguf",
         "mistral-7b-instruct.gguf",
-        "openchat-3.5.gguf"
+        "openchat-3.5.gguf",
     ];
 
     let mut model_names_to_try = Vec::new();
@@ -501,7 +535,7 @@ async fn generate_medical_note(
             model_names_to_try.push(model_name);
         }
     }
-    
+
     let model_paths = [
         // Production: app data directory (where setup wizard downloads them)
         app_data_dir.join("binaries").join("models"),
@@ -516,7 +550,8 @@ async fn generate_medical_note(
             println!("Checking LLM model path: {:?}", test_path);
             if test_path.exists() {
                 // Convert to absolute path
-                let absolute_path = test_path.canonicalize()
+                let absolute_path = test_path
+                    .canonicalize()
                     .unwrap_or_else(|_| test_path.clone());
                 model_path = Some(absolute_path);
                 println!("Found LLM model at: {:?}", model_path.as_ref().unwrap());
@@ -524,7 +559,7 @@ async fn generate_medical_note(
             }
         }
     }
-    
+
     let model_path = match model_path {
         Some(path) => path,
         None => {
@@ -546,13 +581,13 @@ async fn generate_medical_note(
         (
             constants::SOAP_SYSTEM_PROMPT,
             constants::SOAP_USER_PROMPT_TEMPLATE,
-            "<soap_note>"
+            "<soap_note>",
         )
     } else {
         (
             constants::FULL_MEDICAL_SYSTEM_PROMPT,
             constants::FULL_MEDICAL_USER_PROMPT_TEMPLATE,
-            ""
+            "",
         )
     };
 
@@ -570,31 +605,40 @@ async fn generate_medical_note(
     println!("=== PROMPT BEING SENT ===");
     println!("{}", prompt);
     println!("=== END PROMPT ===");
-    
+
     // Execute llamafile with supported parameters only
-    println!("Executing llamafile with absolute model path: {:?}", model_path);
-    
+    println!(
+        "Executing llamafile with absolute model path: {:?}",
+        model_path
+    );
+
     let mut cmd = std::process::Command::new(&llamafile_path);
     cmd.current_dir(&project_root)
         .args([
-            "-m", &model_path.to_string_lossy(),
-            "--temp", constants::TEMPERATURE,           // Low temp for consistent output
-            "--top-p", "0.95",         
-            // "--top-k", "30",           
+            "-m",
+            &model_path.to_string_lossy(),
+            "--temp",
+            constants::TEMPERATURE, // Low temp for consistent output
+            "--top-p",
+            "0.95",
+            // "--top-k", "30",
             // "--repeat-penalty", "1.05", // Prevent repetition
-            "-n", "4096",               // Limit output length
+            "-n",
+            "4096", // Limit output length
             // "--threads", "4",
-            // "--ctx-size", "4096",      
-            "--no-display-prompt",     // Don't echo prompt
+            // "--ctx-size", "4096",
+            "--no-display-prompt", // Don't echo prompt
             // "--batch-size", "512",
-            "--log-disable",           // Disable logging
-            "-p", &prompt
+            "--log-disable", // Disable logging
+            "-p",
+            &prompt,
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    
+
     println!("Starting llamafile process...");
-    let mut child = cmd.spawn()
+    let mut child = cmd
+        .spawn()
         .map_err(|e| format!("Failed to execute llamafile: {}", e))?;
 
     // Stream the output
@@ -602,17 +646,17 @@ async fn generate_medical_note(
     let reader = BufReader::new(stdout);
     let mut accumulated_output = String::new();
     let mut is_generating = false;
-    
+
     for line in reader.lines() {
         if let Ok(line) = line {
             accumulated_output.push_str(&line);
             accumulated_output.push('\n');
-            
+
             // Start streaming after we see the initial pattern
             if !is_generating && (line.contains("S:") || line.contains("1. Presenting Illness")) {
                 is_generating = true;
             }
-            
+
             if is_generating {
                 // Emit the raw output directly without cleaning for real-time display
                 app.emit("note-generation-stream", &line).ok();
@@ -621,7 +665,9 @@ async fn generate_medical_note(
     }
 
     // Wait for the process to complete
-    let status = child.wait().map_err(|e| format!("Failed to wait for llamafile: {}", e))?;
+    let status = child
+        .wait()
+        .map_err(|e| format!("Failed to wait for llamafile: {}", e))?;
 
     println!("Llamafile process completed");
 
@@ -629,18 +675,21 @@ async fn generate_medical_note(
         // Clean the final output
         let note = clean_llm_output(&accumulated_output);
         println!("Generated note length: {}", note.len());
-        
+
         if note.trim().is_empty() {
             return Ok(MedicalNoteResult {
                 success: false,
                 note: String::new(),
-                error: Some("LLM produced empty output. Model may have failed to generate response.".to_string()),
+                error: Some(
+                    "LLM produced empty output. Model may have failed to generate response."
+                        .to_string(),
+                ),
             });
         }
-        
+
         // Send the final cleaned note
         app.emit("note-generation-complete", &note).ok();
-        
+
         Ok(MedicalNoteResult {
             success: true,
             note,
@@ -658,13 +707,13 @@ async fn generate_medical_note(
 fn parse_whisper_output(output: &str) -> String {
     let lines: Vec<&str> = output.lines().collect();
     let mut transcript_parts = Vec::new();
-    
+
     for line in lines {
         let line = line.trim();
         if line.is_empty() {
             continue;
         }
-        
+
         // Whisperfile output format: [00:00:00.000 --> 00:00:05.000] Transcript text
         if let Some(bracket_end) = line.find("] ") {
             if line.starts_with('[') {
@@ -673,18 +722,19 @@ fn parse_whisper_output(output: &str) -> String {
                     transcript_parts.push(text_part.trim());
                 }
             }
-        } else if !line.starts_with('[') && !line.contains("->") && !line.contains("[BLANK_AUDIO]") {
+        } else if !line.starts_with('[') && !line.contains("->") && !line.contains("[BLANK_AUDIO]")
+        {
             // Handle lines without timestamps
             transcript_parts.push(line);
         }
     }
-    
+
     transcript_parts.join(" ")
 }
 
 fn clean_llm_output(output: &str) -> String {
     let mut result = output.to_string();
-    
+
     // Remove common llamafile artifacts and stop tokens
     let artifacts_to_remove = [
         "<|begin_of_text|>",
@@ -695,56 +745,73 @@ fn clean_llm_output(output: &str) -> String {
         "user",
         "assistant",
     ];
-    
+
     for artifact in &artifacts_to_remove {
         result = result.replace(artifact, "");
     }
-    
+
     let mut cleaned = result.trim().to_string();
-    
+
+    // If the output doesn't start with "S:", add it back (only for SOAP notes)
+    if !cleaned.starts_with("S:")
+        && !cleaned.is_empty()
+        && !cleaned.contains("Presenting Illness")
+        && !cleaned.contains("History of Presenting Illness")
+    {
+        cleaned = format!("S: {}", cleaned);
+    }
+
     // Handle case where model might continue generating beyond SOAP note
     // Look for natural stopping points or repetitive content
     let lines: Vec<&str> = cleaned.lines().collect();
     let mut final_lines = Vec::new();
     let mut last_section = "";
-    
+
     for line in lines {
         let trimmed = line.trim();
-        
+
         // Skip empty lines at the start
         if trimmed.is_empty() && final_lines.is_empty() {
             continue;
         }
-        
+
         // Check for SOAP section headers
-        if trimmed.starts_with("S:") || trimmed.starts_with("O:") || 
-           trimmed.starts_with("A:") || trimmed.starts_with("P:") {
+        if trimmed.starts_with("S:")
+            || trimmed.starts_with("O:")
+            || trimmed.starts_with("A:")
+            || trimmed.starts_with("P:")
+        {
             last_section = &trimmed[0..2];
             final_lines.push(trimmed);
             continue;
         }
-        
+
         // Skip obvious artifacts and repetitive content
-        if trimmed.contains("Create a SOAP") || 
-           trimmed.contains("medical conversation") ||
-           trimmed.contains("Provide only") ||
-           trimmed.len() < 3 {
+        if trimmed.contains("Create a SOAP")
+            || trimmed.contains("medical conversation")
+            || trimmed.contains("Provide only")
+            || trimmed.len() < 3
+        {
             continue;
         }
-        
+
         // Stop if we see the model continuing the conversation
-        if trimmed.contains("Dr. Thomas") && trimmed.contains(":") ||
-           trimmed.contains("Susan") && trimmed.contains(":") ||
-           trimmed.contains("Patient") && trimmed.contains(":") {
+        if trimmed.contains("Dr. Thomas") && trimmed.contains(":")
+            || trimmed.contains("Susan") && trimmed.contains(":")
+            || trimmed.contains("Patient") && trimmed.contains(":")
+        {
             break;
         }
-        
+
         // Stop if we see obvious model artifacts
-        if trimmed.contains("**") || trimmed.contains("###") || 
-           trimmed.starts_with("---") || trimmed.contains("```") {
+        if trimmed.contains("**")
+            || trimmed.contains("###")
+            || trimmed.starts_with("---")
+            || trimmed.contains("```")
+        {
             break;
         }
-        
+
         // Add content lines
         if !trimmed.is_empty() {
             final_lines.push(trimmed);
@@ -752,7 +819,7 @@ fn clean_llm_output(output: &str) -> String {
             // Preserve spacing within SOAP note
             final_lines.push("");
         }
-        
+
         // Stop if we've completed all SOAP sections and see repetitive content
         if final_lines.len() > 10 && last_section == "P:" {
             // Check if this line repeats previous content
@@ -766,15 +833,15 @@ fn clean_llm_output(output: &str) -> String {
             }
         }
     }
-    
+
     // Join and final cleanup
     let result = final_lines.join("\n").trim().to_string();
-    
+
     // Ensure we have reasonable SOAP content
     if result.len() < 50 || !result.contains("S:") {
         println!("Warning: Generated SOAP note seems incomplete or malformed");
     }
-    
+
     result
 }
 
@@ -825,7 +892,10 @@ async fn create_patient_note(
     save_encrypted_note(&conn, &encrypted_note_data)
         .map_err(|e| format!("Failed to save note to database: {}", e))?;
 
-    println!("Encrypted note created successfully in database: {}", note_id);
+    println!(
+        "Encrypted note created successfully in database: {}",
+        note_id
+    );
 
     Ok(NoteResult {
         success: true,
@@ -847,7 +917,10 @@ async fn update_patient_note(
     transcript: String,
     medicalNote: String,
 ) -> Result<NoteResult, String> {
-    println!("Updating patient note {} for {} {}", noteId, firstName, lastName);
+    println!(
+        "Updating patient note {} for {} {}",
+        noteId, firstName, lastName
+    );
 
     // Get the DEK using the password
     let dek = get_dek_from_auth_with_password(&app, &password).await?;
@@ -888,7 +961,10 @@ async fn update_patient_note(
     save_encrypted_note(&conn, &encrypted_note_data)
         .map_err(|e| format!("Failed to save updated note to database: {}", e))?;
 
-    println!("Encrypted note updated successfully in database: {}", noteId);
+    println!(
+        "Encrypted note updated successfully in database: {}",
+        noteId
+    );
 
     Ok(NoteResult {
         success: true,
@@ -898,7 +974,10 @@ async fn update_patient_note(
 }
 
 #[tauri::command]
-async fn load_patient_notes(app: tauri::AppHandle, password: String) -> Result<LoadNotesResult, String> {
+async fn load_patient_notes(
+    app: tauri::AppHandle,
+    password: String,
+) -> Result<LoadNotesResult, String> {
     println!("Loading patient notes...");
 
     // Get the DEK using the password
@@ -1010,23 +1089,21 @@ async fn create_user_account_command(
     }
 
     match create_user_account(request.username.clone(), request.password) {
-        Ok(auth_file) => {
-            match save_auth_to_db(&conn, &auth_file) {
-                Ok(_) => Ok(AuthResponse {
-                    success: true,
-                    message: "User account created successfully".to_string(),
-                    user: Some(UserInfo {
-                        user_id: auth_file.user_id,
-                        username: auth_file.user.username,
-                    }),
+        Ok(auth_file) => match save_auth_to_db(&conn, &auth_file) {
+            Ok(_) => Ok(AuthResponse {
+                success: true,
+                message: "User account created successfully".to_string(),
+                user: Some(UserInfo {
+                    user_id: auth_file.user_id,
+                    username: auth_file.user.username,
                 }),
-                Err(e) => Ok(AuthResponse {
-                    success: false,
-                    message: format!("Failed to save auth to database: {}", e),
-                    user: None,
-                }),
-            }
-        }
+            }),
+            Err(e) => Ok(AuthResponse {
+                success: false,
+                message: format!("Failed to save auth to database: {}", e),
+                user: None,
+            }),
+        },
         Err(e) => Ok(AuthResponse {
             success: false,
             message: format!("Failed to create user account: {}", e),
@@ -1051,28 +1128,26 @@ async fn authenticate_user_command(
     }
 
     match load_auth_from_db(&conn) {
-        Ok(auth_file) => {
-            match authenticate_user(&auth_file, &request.password) {
-                Ok(true) => Ok(AuthResponse {
-                    success: true,
-                    message: "Authentication successful".to_string(),
-                    user: Some(UserInfo {
-                        user_id: auth_file.user_id,
-                        username: auth_file.user.username,
-                    }),
+        Ok(auth_file) => match authenticate_user(&auth_file, &request.password) {
+            Ok(true) => Ok(AuthResponse {
+                success: true,
+                message: "Authentication successful".to_string(),
+                user: Some(UserInfo {
+                    user_id: auth_file.user_id,
+                    username: auth_file.user.username,
                 }),
-                Ok(false) => Ok(AuthResponse {
-                    success: false,
-                    message: "Invalid password".to_string(),
-                    user: None,
-                }),
-                Err(e) => Ok(AuthResponse {
-                    success: false,
-                    message: format!("Authentication error: {}", e),
-                    user: None,
-                }),
-            }
-        }
+            }),
+            Ok(false) => Ok(AuthResponse {
+                success: false,
+                message: "Invalid password".to_string(),
+                user: None,
+            }),
+            Err(e) => Ok(AuthResponse {
+                success: false,
+                message: format!("Authentication error: {}", e),
+                user: None,
+            }),
+        },
         Err(e) => Ok(AuthResponse {
             success: false,
             message: format!("Failed to load auth from database: {}", e),
@@ -1117,12 +1192,14 @@ async fn delete_audio_file(audio_path: String) -> Result<bool, String> {
     let path = std::path::Path::new(&audio_path);
 
     if path.exists() {
-        fs::remove_file(&path)
-            .map_err(|e| format!("Failed to delete audio file: {}", e))?;
+        fs::remove_file(&path).map_err(|e| format!("Failed to delete audio file: {}", e))?;
         println!("Audio file deleted successfully");
         Ok(true)
     } else {
-        println!("Audio file not found (may have already been deleted): {}", audio_path);
+        println!(
+            "Audio file not found (may have already been deleted): {}",
+            audio_path
+        );
         Ok(true) // Return true anyway since the file is gone
     }
 }
@@ -1141,7 +1218,9 @@ async fn get_required_models_list() -> Result<Vec<ModelDownloadInfo>, String> {
 }
 
 #[tauri::command]
-async fn check_models_downloaded(app: tauri::AppHandle) -> Result<Vec<(ModelDownloadInfo, bool)>, String> {
+async fn check_models_downloaded(
+    app: tauri::AppHandle,
+) -> Result<Vec<(ModelDownloadInfo, bool)>, String> {
     // Get user preferences to determine which models to check
     let conn = get_db_connection(&app)?;
     let preferences = if model_preferences_exist(&conn).map_err(|e| e.to_string())? {
@@ -1149,7 +1228,7 @@ async fn check_models_downloaded(app: tauri::AppHandle) -> Result<Vec<(ModelDown
     } else {
         get_default_model_preferences()
     };
-    
+
     check_models_exist_with_preferences(&app, &preferences).await
 }
 
@@ -1167,7 +1246,7 @@ async fn get_models_info_command(app: tauri::AppHandle) -> Result<Vec<ModelInfo>
     } else {
         get_default_model_preferences()
     };
-    
+
     get_models_info_with_preferences(&app, &preferences).await
 }
 
@@ -1240,8 +1319,8 @@ async fn list_downloaded_models(app: tauri::AppHandle) -> Result<Vec<DownloadedM
     let mut models = Vec::new();
 
     // Read directory entries
-    let entries = fs::read_dir(&models_dir)
-        .map_err(|e| format!("Failed to read models directory: {}", e))?;
+    let entries =
+        fs::read_dir(&models_dir).map_err(|e| format!("Failed to read models directory: {}", e))?;
 
     for entry in entries {
         let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
@@ -1249,10 +1328,11 @@ async fn list_downloaded_models(app: tauri::AppHandle) -> Result<Vec<DownloadedM
 
         // Only include files (not directories)
         if path.is_file() {
-            let metadata = fs::metadata(&path)
-                .map_err(|e| format!("Failed to get file metadata: {}", e))?;
+            let metadata =
+                fs::metadata(&path).map_err(|e| format!("Failed to get file metadata: {}", e))?;
 
-            let filename = path.file_name()
+            let filename = path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("unknown")
                 .to_string();
@@ -1288,8 +1368,7 @@ async fn delete_model_file(app: tauri::AppHandle, filename: String) -> Result<bo
     }
 
     // Delete the file
-    fs::remove_file(&model_path)
-        .map_err(|e| format!("Failed to delete model file: {}", e))?;
+    fs::remove_file(&model_path).map_err(|e| format!("Failed to delete model file: {}", e))?;
 
     println!("Model file deleted: {}", filename);
     Ok(true)
@@ -1331,7 +1410,7 @@ async fn download_custom_model(
         Ok(path) => {
             println!("Custom model downloaded successfully to: {:?}", path);
             Ok(path.to_string_lossy().to_string())
-        },
+        }
         Err(e) => Err(format!("Download failed: {}", e)),
     }
 }
@@ -1389,11 +1468,17 @@ fn main() {
             get_medllama_metadata_command
         ])
         .setup(|app| {
-            let resource_dir = app.path().resource_dir().expect("failed to get resource directory");
+            let resource_dir = app
+                .path()
+                .resource_dir()
+                .expect("failed to get resource directory");
             println!("Resource directory: {:?}", resource_dir);
-            
+
             // Create app local data directory if it doesn't exist
-            let app_data_dir = app.path().app_local_data_dir().expect("failed to get app local data directory");
+            let app_data_dir = app
+                .path()
+                .app_local_data_dir()
+                .expect("failed to get app local data directory");
             if !app_data_dir.exists() {
                 if let Err(e) = std::fs::create_dir_all(&app_data_dir) {
                     println!("Failed to create app data directory: {}", e);
@@ -1401,7 +1486,7 @@ fn main() {
                     println!("Created app data directory: {:?}", app_data_dir);
                 }
             }
-            
+
             Ok(())
         })
         .run(tauri::generate_context!())

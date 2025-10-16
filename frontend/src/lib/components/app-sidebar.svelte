@@ -1,10 +1,8 @@
 <script lang="ts">
   import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-  import House from '@lucide/svelte/icons/house';
   import Mic from '@lucide/svelte/icons/mic';
   import FileText from '@lucide/svelte/icons/file-text';
   import User from '@lucide/svelte/icons/user';
-  import Play from '@lucide/svelte/icons/play';
   import { page } from '$app/state';
   import { getContext } from 'svelte';
   import type { AuthContext } from '$lib/types.js';
@@ -65,12 +63,12 @@
     <Sidebar.Group>
       <Sidebar.GroupLabel>Navigation</Sidebar.GroupLabel>
       <Sidebar.Menu>
-        {#each menuItems as item}
+        {#each menuItems as item (item.url)}
           <Sidebar.MenuItem>
             <Sidebar.MenuButton isActive={isActive(item.url)}>
               {#snippet child({ props })}
                 {@const IconComponent = item.icon}
-                <a href={item.url} {...props}>
+                <a href={item.url} {...props} data-sveltekit-preload-data="hover">
                   <IconComponent class="size-4" />
                   <span>{item.title}</span>
                 </a>
@@ -115,7 +113,7 @@
       <Sidebar.MenuItem>
         <Sidebar.MenuButton size="lg">
           {#snippet child({ props })}
-            <a href="/profile" {...props}>
+            <a href="/profile" {...props} data-sveltekit-preload-data="hover">
               <div
                 class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground"
               >

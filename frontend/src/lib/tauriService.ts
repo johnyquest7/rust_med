@@ -1,14 +1,26 @@
 import { browser } from '$app/environment';
-import type { TauriNote, TauriNoteIn, AuthResponse, CreateUserRequest, AuthenticateRequest, ModelInfo, ModelPreferences, DownloadedModel, WhisperModelMetadata, RuntimeBinaryMetadata, MedLlamaModelMetadata } from '$lib/types';
+import type {
+  TauriNote,
+  TauriNoteIn,
+  AuthResponse,
+  CreateUserRequest,
+  AuthenticateRequest,
+  ModelInfo,
+  ModelPreferences,
+  DownloadedModel,
+  WhisperModelMetadata,
+  RuntimeBinaryMetadata,
+  MedLlamaModelMetadata
+} from '$lib/types';
 import { authContext } from '$lib/hooks/auth-context.svelte.js';
 
 declare global {
   interface Window {
     __TAURI__: {
-      core: { invoke: (command: string, args?: any) => Promise<any> };
+      core: { invoke: (command: string, args?: unknown) => Promise<unknown> };
       fs: { writeFile: (path: string, data: string | Uint8Array) => Promise<void> };
       path: { appLocalDataDir: () => Promise<string> };
-      event: { listen: (event: string, callback: (data: any) => void) => Promise<void> };
+      event: { listen: (event: string, callback: (data: unknown) => void) => Promise<void> };
     };
   }
 }
@@ -35,13 +47,13 @@ class TauriService {
   }
 
   async joinPath(directory: string, filename: string): Promise<string> {
-    // @ts-ignore
+    // @ts-expect-error - Tauri path.join is not in the type definitions
     return await this.ensureTauri().path.join(directory, filename);
   }
 
   async makePath(directory: string, filename: string): Promise<string> {
     // Use Tauri's path.join to construct the path in a cross-platform way
-    // @ts-ignore
+    // @ts-expect-error - Tauri path.join is not in the type definitions
     return await this.ensureTauri().path.join(directory, filename);
   }
 
@@ -74,7 +86,7 @@ class TauriService {
 
     const result = await this.ensureTauri().core.invoke('load_patient_notes', { password });
     if (result.success) {
-      const notes = result.notes.map((n: any) => ({
+      const notes = result.notes.map((n: unknown) => ({
         id: n.id,
         firstName: n.first_name,
         lastName: n.last_name,
@@ -106,7 +118,7 @@ class TauriService {
       transcript: note.transcript,
       medicalNote: note.medicalNote
     });
-    
+
     console.log('Create note result:', result);
     return result;
   }
@@ -154,11 +166,11 @@ class TauriService {
   }
 
   // Setup wizard methods
-  async getRequiredModelsList(): Promise<any[]> {
+  async getRequiredModelsList(): Promise<unknown[]> {
     return await this.ensureTauri().core.invoke('get_required_models_list');
   }
 
-  async checkModelsDownloaded(): Promise<[any, boolean][]> {
+  async checkModelsDownloaded(): Promise<[unknown, boolean][]> {
     return await this.ensureTauri().core.invoke('check_models_downloaded');
   }
 
@@ -170,7 +182,7 @@ class TauriService {
     return await this.ensureTauri().core.invoke('get_models_info_command');
   }
 
-  async downloadModelFile(model: any): Promise<void> {
+  async downloadModelFile(model: unknown): Promise<void> {
     return await this.ensureTauri().core.invoke('download_model_file', { model });
   }
 
