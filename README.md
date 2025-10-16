@@ -7,10 +7,11 @@
 The following instructions are written for mac and linux, but should be adaptable to windows easily.
 
 1. Install Rust with rustup: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-2. Restart your terminal
-3. Update rust: `rustup update`
-4. Install Node.js and make sure that's set up. See https://nodejs.org/.
-5. Install dependencies:
+   (For Windows, download the setup file from https://rust-lang.org/tools/install/)
+3. Restart your terminal
+4. Update rust: `rustup update`
+5. Install Node.js and make sure that's set up. See https://nodejs.org/.
+6. Install dependencies:
 
 ```bash
 # Install root dependencies
