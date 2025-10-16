@@ -10,8 +10,9 @@ The following instructions are written for mac and linux, but should be adaptabl
    (For Windows, download the setup file from https://rust-lang.org/tools/install/)
 3. Restart your terminal
 4. Update rust: `rustup update`
-5. Install Node.js and make sure that's set up. See https://nodejs.org/.
-6. Install dependencies:
+5. Install Tauri `cargo install tauri-cli'
+6. Install Node.js and make sure that's set up. See https://nodejs.org/.
+7. Install dependencies:
 
 ```bash
 # Install root dependencies
